@@ -51,6 +51,11 @@ export type AccountConfig = {
   autoAcceptFriends: boolean;
   /** Chờ bao nhiêu phút rồi mới auto-accept (mặc định 1, min 0, max 1440) */
   autoAcceptFriendDelayMinutes: number;
+  /**
+   * Chế độ CHỈ ĐỌC: không trả lời ai, chỉ ghi lại mọi tin (kể cả tin của chính
+   * chủ tài khoản) vào history và file log theo ngày để AI khác đọc lọc việc.
+   */
+  readOnly?: boolean;
 };
 
 type Row = {
@@ -71,6 +76,7 @@ type Row = {
   bot_token_enc: string;
   auto_accept_friends: number;
   auto_accept_friend_delay_minutes: number;
+  read_only: number;
 };
 
 const toConfig = (r: Row): AccountConfig => ({
@@ -92,13 +98,14 @@ const toConfig = (r: Row): AccountConfig => ({
   disabledTools: parseDisabledTools(r.disabled_tools),
   autoAcceptFriends: r.auto_accept_friends === 1,
   autoAcceptFriendDelayMinutes: r.auto_accept_friend_delay_minutes,
+  readOnly: r.read_only === 1,
 });
 
 const SELECT = `SELECT id, label, enabled, agent_id, allowlist_mode, allowlist_user_ids,
                        group_require_mention, respond_to_groups, group_passive_listen,
                        auto_react_enabled, auto_react_icon, typing_indicator_enabled,
                        disabled_tools, loai, bot_token_enc,
-                       auto_accept_friends, auto_accept_friend_delay_minutes
+                       auto_accept_friends, auto_accept_friend_delay_minutes, read_only
                 FROM accounts`;
 
 export function listAccounts(): AccountConfig[] {
@@ -143,7 +150,7 @@ export function updateAccount(
        allowlist_user_ids = ?, group_require_mention = ?, respond_to_groups = ?,
        group_passive_listen = ?, auto_react_enabled = ?, auto_react_icon = ?,
        typing_indicator_enabled = ?, disabled_tools = ?,
-       auto_accept_friends = ?, auto_accept_friend_delay_minutes = ?
+       auto_accept_friends = ?, auto_accept_friend_delay_minutes = ?, read_only = ?
      WHERE id = ?`,
   ).run(
     next.label,
@@ -160,6 +167,7 @@ export function updateAccount(
     JSON.stringify(next.disabledTools),
     next.autoAcceptFriends ? 1 : 0,
     next.autoAcceptFriendDelayMinutes,
+    next.readOnly ? 1 : 0,
     id,
   );
   return getAccount(id);

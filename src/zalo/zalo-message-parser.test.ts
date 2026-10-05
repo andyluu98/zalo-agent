@@ -157,3 +157,48 @@ describe("parseIncomingMessage - mốc giờ gửi", () => {
     assert.match(msg.sentAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
   });
 });
+
+describe("parseIncomingMessage - loại tin, đính kèm, trích dẫn", () => {
+  const SELF = "self-1";
+
+  it("file: lấy tên + link, loại 'file'", () => {
+    const msg = parseIncomingMessage("acc", SELF, {
+      type: ThreadType.User,
+      threadId: "t1",
+      data: {
+        msgType: "share.file",
+        uidFrom: "u1",
+        content: { title: "bao-gia.xlsx", href: "https://f.zalo/x" },
+      },
+    });
+    assert.equal(msg.loaiTin, "file");
+    assert.deepEqual(msg.dinhKem, { ten: "bao-gia.xlsx", url: "https://f.zalo/x" });
+  });
+
+  it("sticker không chữ: describeForHistory ra dấu giữ chỗ", async () => {
+    const { describeForHistory } = await import("./zalo-message-parser.js");
+    const msg = parseIncomingMessage("acc", SELF, {
+      type: ThreadType.User,
+      threadId: "t1",
+      data: { msgType: "chat.sticker", uidFrom: "u1", content: { id: 1 } },
+    });
+    assert.equal(msg.loaiTin, "sticker");
+    assert.equal(describeForHistory(msg), "[sticker]");
+  });
+
+  it("tin trả lời: rút người gửi + nội dung tin được trích, kể cả khi trích là file", () => {
+    const chu = parseIncomingMessage("acc", SELF, {
+      type: ThreadType.Group,
+      threadId: "g1",
+      data: { msgType: "webchat", uidFrom: "u1", content: "ok em", quote: { fromD: "Sếp", msg: "gửi báo giá nhé" } },
+    });
+    assert.deepEqual(chu.trichDan, { nguoiGui: "Sếp", noiDung: "gửi báo giá nhé" });
+
+    const file = parseIncomingMessage("acc", SELF, {
+      type: ThreadType.Group,
+      threadId: "g1",
+      data: { msgType: "webchat", uidFrom: "u1", content: "xem", quote: { fromD: "A", msg: "", attach: '{"title":"hd.pdf"}' } },
+    });
+    assert.equal(file.trichDan?.noiDung, "hd.pdf");
+  });
+});

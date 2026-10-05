@@ -8,6 +8,18 @@ export type IncomingImage = {
   localPath?: string;
 };
 
+/**
+ * Loại tin rút từ `msgType` của Zalo. Chỉ dùng để ghi log / dấu giữ chỗ - luồng
+ * trả lời vẫn chỉ xử lý chữ + ảnh như trước.
+ */
+export type LoaiTin = "chu" | "anh" | "file" | "sticker" | "thoai" | "video" | "lien_ket" | "vi_tri" | "khac";
+
+/** File/video/thoại/liên kết đính kèm: tên + link gốc Zalo (không tải về) */
+export type DinhKem = { ten: string; url: string };
+
+/** Tin được trích dẫn (người gửi bấm "Trả lời" một tin cũ) */
+export type TinTrichDan = { nguoiGui: string; noiDung: string };
+
 export type ParsedMessage = {
   accountId: string;
   threadId: string;
@@ -39,6 +51,10 @@ export type ParsedMessage = {
    * nó đã nằm sẵn trong đó - không lọc là model thấy lặp hai lần.
    */
   historyRowId?: number;
+  /** Không có = tin chữ/ảnh (kênh bot và các object dựng tay không điền) */
+  loaiTin?: LoaiTin;
+  dinhKem?: DinhKem;
+  trichDan?: TinTrichDan;
   /** data gốc của zca-js - dùng cho quote khi trả lời */
   rawData: Record<string, unknown>;
 };
@@ -50,7 +66,50 @@ export type ParsedMessage = {
  */
 export function describeForHistory(msg: ParsedMessage): string {
   const imageNote = msg.images.length > 0 ? ` [gửi kèm ${msg.images.length} ảnh]` : "";
-  return `${msg.text}${imageNote}`.trim() || "[ảnh]";
+  const coChu = `${msg.text}${imageNote}`.trim();
+  if (coChu) return coChu;
+  // Tin không chữ không ảnh chỉ tới được đây ở chế độ chỉ đọc (luồng trả lời
+  // lọc bỏ từ trước) - để lại dấu giữ chỗ thay vì dòng trống
+  return DAU_GIU_CHO[msg.loaiTin ?? "anh"] ?? "[ảnh]";
+}
+
+const DAU_GIU_CHO: Partial<Record<LoaiTin, string>> = {
+  file: "[file]",
+  sticker: "[sticker]",
+  thoai: "[tin thoại]",
+  video: "[video]",
+  lien_ket: "[liên kết]",
+  vi_tri: "[vị trí]",
+  khac: "[tin không có chữ]",
+};
+
+/** Map `msgType` của Zalo (vd "webchat", "chat.photo", "share.file") sang loại tin */
+export function loaiTinTuMsgType(msgType: string): LoaiTin {
+  if (msgType === "webchat" || msgType === "") return "chu";
+  if (msgType.includes("photo") || msgType.includes("gif") || msgType.includes("doodle")) return "anh";
+  if (msgType === "share.file") return "file";
+  if (msgType.includes("sticker")) return "sticker";
+  if (msgType.includes("voice")) return "thoai";
+  if (msgType.includes("video")) return "video";
+  if (msgType.includes("recommended") || msgType.includes("link")) return "lien_ket";
+  if (msgType.includes("location")) return "vi_tri";
+  return "khac";
+}
+
+/** `quote.attach` là chuỗi JSON; tin trích là file/ảnh thì chữ nằm ở `title` */
+function docTrichDan(raw: unknown): TinTrichDan | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const quote = raw as Record<string, unknown>;
+  let noiDung = typeof quote.msg === "string" ? quote.msg : "";
+  if (!noiDung && typeof quote.attach === "string" && quote.attach) {
+    try {
+      const attach = JSON.parse(quote.attach) as Record<string, unknown>;
+      noiDung = String(attach.title ?? attach.description ?? "");
+    } catch {
+      /* attach không phải JSON - bỏ qua */
+    }
+  }
+  return { nguoiGui: String(quote.fromD ?? ""), noiDung: noiDung || "[đính kèm]" };
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -88,6 +147,12 @@ export function parseIncomingMessage(
     }
   }
 
+  const loaiTin = loaiTinTuMsgType(msgType);
+  let dinhKem: DinhKem | undefined;
+  if (content && typeof content === "object" && (loaiTin === "file" || loaiTin === "video" || loaiTin === "thoai" || loaiTin === "lien_ket")) {
+    dinhKem = { ten: String(content.title ?? ""), url: String(content.href ?? "") };
+  }
+
   const mentions = Array.isArray(data.mentions) ? data.mentions : [];
   const mentionsMe = mentions.some((m: any) => String(m?.uid) === selfId);
 
@@ -105,6 +170,9 @@ export function parseIncomingMessage(
     isSelf: Boolean(message?.isSelf),
     mentionsMe,
     sentAt: mocGuiCuaTinZalo(data.ts, nhanLuc),
+    loaiTin,
+    ...(dinhKem ? { dinhKem } : {}),
+    ...(data.quote ? { trichDan: docTrichDan(data.quote) } : {}),
     rawData: data,
   };
 }

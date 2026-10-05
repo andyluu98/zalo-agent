@@ -32,6 +32,12 @@ export function shouldRespond(
     return skip("tin của chính bot");
   }
 
+  // Chỉ đọc: ghi MỌI tin (kể cả sticker/thoại, nhóm không @mention, người ngoài
+  // allowlist) vì mục đích là log đầy đủ để lọc việc, không phải trả lời
+  if (account.readOnly) {
+    return recordOnly("chế độ chỉ đọc - chỉ ghi history");
+  }
+
   if (!msg.text.trim() && msg.images.length === 0) {
     return skip("không có nội dung xử lý được (sticker/voice/...)");
   }

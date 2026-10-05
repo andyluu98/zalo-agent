@@ -9,7 +9,6 @@ import {
   hasDisplayName,
   isBotEnabled,
   recordThreadActivity,
-  setThreadDisplayName,
 } from "../conversation/thread-store.js";
 import { shouldRespond } from "../middleware/allowlist-filter.js";
 import { enqueueMessage } from "../middleware/message-batcher.js";
@@ -20,6 +19,8 @@ import { processBatch } from "./message-turn-processor.js";
 import { reportPayloadAnomalies } from "./payload-anomaly-watch.js";
 import { ganAnhVaoHistory, ghiTinDenVaoHistory } from "./record-incoming-message.js";
 import { parseIncomingMessage } from "./zalo-message-parser.js";
+import { ghiLogChiDoc } from "./read-only-chat-log.js";
+import { resolveGroupName } from "./resolve-group-name.js";
 
 const log = createLogger("message-router");
 
@@ -42,10 +43,12 @@ export function routeIncomingMessage(
   // ở ngay dòng dưới, không cảnh báo ở đây thì không còn chỗ nào biết
   reportPayloadAnomalies(config.id, msg);
 
+  let choTenNhom: Promise<void> | undefined;
   if (!msg.isSelf && msg.threadId) {
     // "Đã nhận" cho MỌI tin về tới listener, kể cả tin sắp bị lọc - client Zalo
-    // thật cũng báo nhận tự động, không phụ thuộc người dùng có đọc hay không
-    sendDeliveredReceipt(api, msg);
+    // thật cũng báo nhận tự động, không phụ thuộc người dùng có đọc hay không.
+    // Chỉ đọc thì KHÔNG báo: tài khoản phải im lặng hoàn toàn như chưa mở máy.
+    if (!config.readOnly) sendDeliveredReceipt(api, msg);
     recordContactActivity(config.id, msg.senderId, msg.senderName);
     recordThreadActivity({
       accountId: config.id,
@@ -55,8 +58,13 @@ export function routeIncomingMessage(
       lastSenderName: msg.senderName,
     });
     if (msg.isGroup && !hasDisplayName(config.id, msg.threadId)) {
-      void resolveGroupName(config.id, api, msg.threadId);
+      choTenNhom = resolveGroupName(config.id, api, msg.threadId);
     }
+  }
+
+  // Chỉ đọc: ghi ra file log theo ngày, gồm cả tin chủ tài khoản tự gửi
+  if (config.readOnly && msg.threadId) {
+    ghiLogChiDoc(config.id, api, msg, choTenNhom);
   }
 
   const decision = shouldRespond(config, msg, isBotEnabled(config.id, msg.threadId));
@@ -64,7 +72,7 @@ export function routeIncomingMessage(
   if (!decision.respond) {
     if (decision.record) {
       // Không có lượt agent nào sắp chạy nên phải tự tải ảnh
-      ghiTinDenVaoHistory(config.id, msg, { luuAnhNgay: true });
+      ghiTinDenVaoHistory(config.id, msg, { luuAnhNgay: true, giuToanBo: config.readOnly });
     }
     log.debug(
       { accountId: config.id, threadId: msg.threadId, reason: decision.reason },
@@ -127,16 +135,4 @@ export function routeIncomingMessage(
       threadKey,
     }),
   ).catch((err) => log.debug({ threadId: msg.threadId, err }, "Gửi câu trấn an thất bại"));
-}
-
-/** Lấy tên group 1 lần khi gặp lần đầu, cache vào bảng threads */
-async function resolveGroupName(accountId: string, api: API, threadId: string): Promise<void> {
-  try {
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    const info: any = await api.getGroupInfo(threadId);
-    const name = info?.gridInfoMap?.[threadId]?.name ?? info?.name;
-    if (name) setThreadDisplayName(accountId, threadId, String(name));
-  } catch (err) {
-    log.debug({ accountId, threadId, err }, "Không lấy được tên nhóm - để trống");
-  }
 }

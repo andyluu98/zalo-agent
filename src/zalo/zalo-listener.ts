@@ -1,9 +1,10 @@
-import type { API, FriendEvent } from "zca-js";
+import type { API, FriendEvent, Undo } from "zca-js";
 import { createLogger } from "../shared/logger.js";
 import { KeHoachKetNoiLai } from "./reconnect-planner.js";
 
 export type RawMessageHandler = (rawMessage: unknown) => Promise<void> | void;
 export type FriendEventHandler = (event: FriendEvent) => Promise<void> | void;
+export type UndoHandler = (event: Undo) => Promise<void> | void;
 
 /** Trần jitter cộng vào backoff để nhiều account không reconnect đồng loạt */
 const JITTER_MS = 1_000;
@@ -21,6 +22,7 @@ export function startListener(
   api: API,
   onMessage: RawMessageHandler,
   onFriendEvent?: FriendEventHandler,
+  onUndo?: UndoHandler,
 ): () => void {
   const log = createLogger(`listener:${accountId}`);
   let stopped = false;
@@ -80,6 +82,12 @@ export function startListener(
       Promise.resolve(onFriendEvent(event)).catch((err) =>
         log.error({ err }, "Lỗi xử lý friend_event"),
       );
+    });
+  }
+
+  if (onUndo) {
+    api.listener.on("undo", (event) => {
+      Promise.resolve(onUndo(event)).catch((err) => log.error({ err }, "Lỗi xử lý undo"));
     });
   }
 

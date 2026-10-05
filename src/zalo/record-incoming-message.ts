@@ -35,6 +35,8 @@ export type TuyChonGhiTinDen = {
    * nhưng tốn đúng một lượt tải mạng thừa cho mỗi ảnh.
    */
   luuAnhNgay: boolean;
+  /** Chế độ chỉ đọc: không cắt history theo HISTORY_MAX_MESSAGES_PER_THREAD */
+  giuToanBo?: boolean;
 };
 
 /**
@@ -46,7 +48,7 @@ export type TuyChonGhiTinDen = {
 export function ghiTinDenVaoHistory(
   accountId: string,
   msg: ParsedMessage,
-  { luuAnhNgay }: TuyChonGhiTinDen,
+  { luuAnhNgay, giuToanBo = false }: TuyChonGhiTinDen,
 ): number {
   const rowId = appendMessage(accountId, msg.threadId, {
     role: "user",
@@ -57,7 +59,7 @@ export function ghiTinDenVaoHistory(
     // nên giá trị luôn rỗng. Đường dẫn được gắn sau qua `ganAnhVaoHistory`.
     // Giờ NGƯỜI TA BẤM GỬI, không phải giờ chạy tới dòng này
     createdAt: msg.sentAt,
-  });
+  }, { catBot: !giuToanBo });
   msg.historyRowId = rowId;
 
   if (luuAnhNgay && msg.images.length > 0) {

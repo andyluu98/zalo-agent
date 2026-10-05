@@ -23,7 +23,10 @@ function createZaloInstance(): Zalo {
   return new Zalo({
     checkUpdate: false,
     logging: false,
-    selfListen: false,
+    // Bật để nhận cả tin chủ tài khoản gửi từ điện thoại: chế độ chỉ đọc cần
+    // chúng trong log ("ok anh, em làm"). Luồng trả lời vẫn bỏ qua tin isSelf
+    // ở `shouldRespond`, nên tin bot tự gửi quay về cũng không gây vòng lặp.
+    selfListen: true,
     imageMetadataGetter,
   });
 }

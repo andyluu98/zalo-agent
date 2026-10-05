@@ -23,6 +23,10 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error"]).default("info"),
   DATA_DIR: z.string().default("./data"),
+  // Thư mục ghi log tin nhắn theo ngày (.md + .jsonl) của account bật "chỉ đọc".
+  // Rỗng = <DATA_DIR>/exports. Trỏ ra chỗ khác (vd ổ chung với Claude/Antigravity)
+  // nếu muốn AI đọc mà không chạm thư mục data chứa cookie.
+  CHAT_EXPORT_DIR: z.string().default(""),
 
   LLM_PROVIDER: z.enum(LLM_PROVIDER_KINDS).default("openai-compatible"),
   LLM_BASE_URL: z.preprocess(emptyToUndefined, z.string().startsWith("http").optional()),
@@ -493,3 +497,7 @@ if (env.NODE_ENV !== "test" && env.KB_EXTRACT_TIMEOUT_MS < 5000) {
 
 export const dataDir = path.resolve(env.DATA_DIR);
 fs.mkdirSync(dataDir, { recursive: true });
+
+export const chatExportDir = env.CHAT_EXPORT_DIR
+  ? path.resolve(env.CHAT_EXPORT_DIR)
+  : path.join(dataDir, "exports");

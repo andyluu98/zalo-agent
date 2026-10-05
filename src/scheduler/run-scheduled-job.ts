@@ -108,6 +108,14 @@ async function dispatch(job: ScheduledJob, options: RunScheduledJobOptions, runI
     return;
   }
 
+  // Chỉ đọc = không gửi gì ra ngoài. Tiêu luôn suất chạy (`conclude`) thay vì
+  // `concludeBlockedNotRun`: cái sau đặt lại job `once` về đúng mốc cũ nên nó
+  // sẽ chạy lại ở MỌI tick chừng nào còn bật chỉ đọc.
+  if (account.readOnly) {
+    conclude(job, runId, { status: "skipped", detail: "Tài khoản đang ở chế độ chỉ đọc - không gửi." });
+    return;
+  }
+
   if (job.kind === "message") {
     await runMessageJob(job, dich.target, runId, timeZone, options);
     return;

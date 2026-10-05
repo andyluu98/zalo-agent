@@ -8,6 +8,25 @@ Bản `0.x` nghĩa là API và cấu hình còn có thể đổi giữa các b�
 
 ## [Chưa phát hành]
 
+### Thêm
+
+- **Chế độ chỉ đọc cho tài khoản** (Accounts -> Policies -> "Chế độ chỉ đọc", cột
+  `accounts.read_only`). Bot không trả lời, không báo "đã nhận", không gửi lịch hẹn
+  (job tới giờ bị bỏ qua, tiêu luôn suất chạy). Mọi tin vẫn được ghi, kể cả sticker,
+  tin thoại, nhóm không @mention, người ngoài allowlist; history không bị cắt theo
+  `HISTORY_MAX_MESSAGES_PER_THREAD`.
+- **Log tin nhắn theo ngày ra file** cho tài khoản chỉ đọc:
+  `<CHAT_EXPORT_DIR>/<account>/<yyyy-MM-dd>/<ten-thread>_<threadId>.md` + `tin-nhan.jsonl`,
+  nối thêm ngay khi tin đến, ngày theo `BOT_TIMEZONE`. Có tin chủ tài khoản tự gửi,
+  tin được trích dẫn, tên + link file đính kèm, tin bị thu hồi. Tự tạo `CLAUDE.md` /
+  `AGENTS.md` ở gốc thư mục hướng dẫn Claude Code / Antigravity lọc việc từ log.
+  Biến mới `CHAT_EXPORT_DIR` (mặc định `<DATA_DIR>/exports`).
+
+### Đổi
+
+- zca-js chạy với `selfListen: true` để nhận tin chủ tài khoản gửi từ máy khác. Luồng
+  trả lời vẫn bỏ qua tin `isSelf` nên không đổi hành vi bot.
+
 ## [0.3.1] - 2026-08-30
 
 ### Thêm

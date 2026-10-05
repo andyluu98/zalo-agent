@@ -597,6 +597,7 @@ export type ManagedAccount = {
   /** Tab Bạn bè: tự động chấp nhận kết bạn + delay (phút) */
   autoAcceptFriends: boolean;
   autoAcceptFriendDelayMinutes: number;
+  readOnly: boolean;
   /** Loại kênh - chốt lúc tạo, không đổi được sau đó */
   loai: "ca_nhan" | "bot";
   /**

@@ -78,6 +78,7 @@ export function appendMessage(
   accountId: string,
   threadId: string,
   message: StoredMessage,
+  { catBot = true }: { catBot?: boolean } = {},
 ): number {
   const cot = [
     accountId,
@@ -92,7 +93,10 @@ export function appendMessage(
     ? insertWithCreatedAtStmt.run(...cot, message.createdAt)
     : insertStmt.run(...cot);
   // Dọn ngay thread vừa ghi: không cần cron, và thread im lặng thì không tốn gì
-  pruneStmt.run(accountId, threadId, accountId, threadId, getTuning("HISTORY_MAX_MESSAGES_PER_THREAD"));
+  // `catBot: false` = chế độ chỉ đọc: giữ toàn bộ lịch sử, không cắt theo trần
+  if (catBot) {
+    pruneStmt.run(accountId, threadId, accountId, threadId, getTuning("HISTORY_MAX_MESSAGES_PER_THREAD"));
+  }
   return Number(result.lastInsertRowid);
 }
 

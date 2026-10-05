@@ -47,6 +47,7 @@ export function AccountEditDrawer({
     typingIndicatorEnabled: account?.typingIndicatorEnabled ?? true,
     autoAcceptFriends: account?.autoAcceptFriends ?? false,
     autoAcceptFriendDelayMinutes: account?.autoAcceptFriendDelayMinutes ?? 1,
+    readOnly: account?.readOnly ?? false,
     allowlistMode: account?.allowlist.mode ?? "all",
     allowlistIds: (account?.allowlist.userIds ?? []).join("\n"),
     /** Chốt LÚC TẠO, không đổi được sau đó - xem `createSchema` ở account-routes */
@@ -108,6 +109,7 @@ export function AccountEditDrawer({
       typingIndicatorEnabled: form.typingIndicatorEnabled,
       autoAcceptFriends: form.autoAcceptFriends,
       autoAcceptFriendDelayMinutes: form.autoAcceptFriendDelayMinutes,
+      readOnly: form.readOnly,
       allowlist: {
         mode: form.allowlistMode as "all" | "list",
         userIds: form.allowlistIds.split("\n").map((s) => s.trim()).filter(Boolean),
@@ -228,6 +230,12 @@ export function AccountEditDrawer({
 
           <div className="space-y-2 rounded-xl border border-line p-4">
             <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-soft">Policies</div>
+            <Toggle
+              value={form.readOnly}
+              onChange={(v) => setForm({ ...form, readOnly: v })}
+              label="Chế độ chỉ đọc"
+              hint="Không trả lời ai, chỉ ghi mọi tin ra file log theo ngày (data/exports) cho AI đọc lọc việc"
+            />
             <Toggle
               value={form.respondToGroups}
               onChange={(v) => setForm({ ...form, respondToGroups: v })}

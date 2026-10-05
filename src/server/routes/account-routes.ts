@@ -68,6 +68,7 @@ const patchSchema = z.object({
   // Tab Bạn bè: tự động chấp nhận kết bạn + delay (phút). Chặn số vô lý ngay ở API.
   autoAcceptFriends: z.boolean().optional(),
   autoAcceptFriendDelayMinutes: z.number().int().min(0).max(1440).optional(),
+  readOnly: z.boolean().optional(),
 });
 
 const withStatus = (a: ReturnType<typeof listAccounts>[number]) => ({

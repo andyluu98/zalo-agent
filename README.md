@@ -189,6 +189,24 @@ Ba loại lịch: `once`, `every`, `cron`. Đặt bằng lời ngay trong chat h
 - **Fact bền** qua `save_memory`, có luật riêng tư bất đối xứng giữa chat riêng và nhóm
 - Ảnh nhận được lưu lại, mô tả bằng model vision phụ và cache lại để lượt sau khỏi trả tiền lần nữa
 
+### Chế độ chỉ đọc: log Zalo theo ngày cho AI lọc việc
+
+Dành cho người làm việc nhiều trên Zalo, tin trôi nhanh và hay sót việc. Bật
+**Accounts -> Policies -> Chế độ chỉ đọc**: tài khoản im lặng hoàn toàn (không trả
+lời, không báo "đã nhận", không gửi lịch hẹn), chỉ ghi mọi tin ra file:
+
+```
+data/exports/<account>/2026-10-05/
+  nhom-kinh-doanh_123456.md   # mỗi cuộc trò chuyện một file, mỗi tin một dòng
+  tin-nhan.jsonl              # cùng dữ liệu cho máy đọc
+data/exports/CLAUDE.md        # hướng dẫn AI lọc việc (sửa tay được)
+```
+
+Mở thư mục `data/exports` bằng Claude Code hoặc Antigravity rồi nhờ "lọc việc hôm
+nay": AI đọc log, trả bảng việc kèm người giao, hạn chót, trạng thái và nguồn (file
++ giờ). Muốn để log ở chỗ khác thì đặt `CHAT_EXPORT_DIR` trong `.env`. Log chứa tin
+nhắn của người khác: giữ trên máy, không đưa lên GitHub (`data/` đã gitignore).
+
 ## Dashboard
 
 Hono + React + Tailwind, phục vụ ngay từ chính tiến trình agent tại `http://127.0.0.1:3900`.

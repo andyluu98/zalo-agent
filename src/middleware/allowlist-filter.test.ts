@@ -50,6 +50,24 @@ function makeMessage(overrides: Partial<ParsedMessage> = {}): ParsedMessage {
 }
 
 describe("shouldRespond", () => {
+  it("chỉ đọc: ghi mọi tin, kể cả sticker, nhóm không @mention, người ngoài allowlist", () => {
+    const acc = makeAccount({ readOnly: true, allowlist: { mode: "list", userIds: ["khac"] } });
+    for (const msg of [
+      makeMessage(),
+      makeMessage({ text: "" }),
+      makeMessage({ isGroup: true, threadType: ThreadType.Group, mentionsMe: false }),
+    ]) {
+      const d = shouldRespond(acc, msg);
+      assert.equal(d.respond, false);
+      assert.equal(d.record, true);
+    }
+  });
+
+  it("chỉ đọc: vẫn bỏ qua tin isSelf (tin tự gửi chỉ vào file log)", () => {
+    const d = shouldRespond(makeAccount({ readOnly: true }), makeMessage({ isSelf: true }));
+    assert.deepEqual([d.respond, d.record], [false, false]);
+  });
+
   it("bỏ qua tin do chính bot gửi", () => {
     const decision = shouldRespond(makeAccount(), makeMessage({ isSelf: true }));
     assert.equal(decision.respond, false);

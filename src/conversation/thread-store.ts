@@ -69,6 +69,12 @@ export function hasDisplayName(accountId: string, threadId: string): boolean {
   return row !== undefined && row.display_name !== "";
 }
 
+/** Tên hiển thị đã lưu của thread (tên nhóm / tên người), rỗng nếu chưa biết */
+export function getThreadDisplayName(accountId: string, threadId: string): string {
+  const row = getStmt.get(accountId, threadId) as { display_name: string } | undefined;
+  return row?.display_name ?? "";
+}
+
 const setEnabledStmt = db.prepare(
   "UPDATE threads SET bot_enabled = ? WHERE account_id = ? AND thread_id = ?",
 );

@@ -297,6 +297,11 @@ function runMigrations(): void {
   addColumnIfMissing("accounts", "auto_accept_friends", "INTEGER NOT NULL DEFAULT 0");
   addColumnIfMissing("accounts", "auto_accept_friend_delay_minutes", "INTEGER NOT NULL DEFAULT 1");
 
+  // Chế độ CHỈ ĐỌC: bot không trả lời, không báo "đã nhận", không gửi lịch hẹn;
+  // chỉ ghi mọi tin vào history + file log theo ngày (xem daily-chat-export.ts).
+  // Mặc định TẮT để account cũ giữ nguyên hành vi.
+  addColumnIfMissing("accounts", "read_only", "INTEGER NOT NULL DEFAULT 0");
+
   // Loại KÊNH của tài khoản: "ca_nhan" (zca-js, giao thức đảo ngược) hoặc
   // "bot" (Zalo Bot API chính thức). Mặc định "ca_nhan" để mọi dòng đã có từ
   // trước giữ nguyên hành vi - đây là loại duy nhất tồn tại trước cột này.
