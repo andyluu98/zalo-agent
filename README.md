@@ -241,6 +241,7 @@ khởi động có thể bỏ qua.
       nhom-kinh-doanh_123456789.md      mỗi cuộc trò chuyện 1 file / ngày
       nguyen-van-a_987654321.md
       tin-nhan.jsonl                    mọi tin trong ngày, 1 dòng JSON / tin (có msgId, senderId)
+    _trang-thai.md, _trang-thai.json    bot còn chạy không, mất kết nối lúc nào, lần tải bù gần nhất
 ```
 
 Một file `.md` trông như sau:
@@ -276,12 +277,37 @@ Việc | Người giao | Hạn | Trạng thái | Nguồn (file + giờ).
 Không bịa thông tin ngoài log; ngày nào không có thư mục thì ghi "không có log".
 ```
 
-Tác vụ chỉ chạy khi máy bật và cả zalo-agent lẫn Claude Desktop đang mở.
+Tác vụ chỉ chạy khi máy bật và cả zalo-agent lẫn Claude Desktop đang mở. File `CLAUDE.md` dặn AI
+đọc `_trang-thai.md` trước: bot tắt, mất kết nối hay lỗi đăng nhập thì báo cáo có cảnh báo ngay
+đầu, không lặng lẽ báo "hôm nay ít việc".
+
+#### Trạng thái và tải bù tin
+
+- **Sổ trạng thái** `_trang-thai.md`: Đang kết nối / Mất kết nối / Đã dừng / Lỗi đăng nhập, kèm giờ.
+  Khi đang kết nối, bot ghi lại file này mỗi 5 phút; "Cập nhật lúc" cũ hơn 15 phút nghĩa là bot
+  đã tắt hoặc treo.
+- **Tải bù tin nhắn bị lỡ**: mỗi lần kết nối (khởi động hoặc nối lại sau khi rớt mạng), bot xin Zalo
+  các tin sau tin cuối cùng đã ghi, bỏ tin trùng theo `msgId`, rồi ghi như tin thường. Tin tải bù
+  được nối vào cuối file nên có thể lệch thứ tự giờ. Lần chạy đầu tiên không tải bù.
+
+#### Tự chạy khi bật máy (Windows)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\windows\cai-tu-khoi-dong.ps1   # đăng ký
+Start-ScheduledTask -TaskName zalo-agent                                          # chạy ngay
+powershell -ExecutionPolicy Bypass -File scripts\windows\go-tu-khoi-dong.ps1    # gỡ
+```
+
+Tác vụ Task Scheduler tên `zalo-agent`, chạy ẩn 1 phút sau khi đăng nhập Windows, tự khởi động lại
+tối đa 5 lần nếu tiến trình chết. Khi đã bật tự chạy thì **đừng `pnpm start` bằng tay** (hai tiến
+trình tranh cổng 3900 và tranh phiên Zalo). `Stop-ScheduledTask` không tắt tiến trình node con: muốn
+dừng hẳn thì tắt tiến trình node đang giữ cổng 3900.
 
 #### Giới hạn cần biết
 
-- **Tin đến lúc bot tắt sẽ bị mất.** Bot chỉ nghe tin trực tiếp; chưa tải bù tin cũ khi khởi động
-  lại. Để bot chạy liên tục nếu không muốn sót.
+- **Tải bù phụ thuộc Zalo**: chưa đo được Zalo trả lùi bao xa hay tối đa bao nhiêu tin một lần. Bot
+  tắt lâu (nhiều ngày) hoặc nhóm rất đông có thể vẫn thiếu tin; xem số tin tải bù trong `_trang-thai.md`.
+  Tin bị thu hồi trong lúc bot tắt không tải bù được.
 - **Không mở Zalo Web của chính nick đó trên trình duyệt**: Zalo chỉ cho một phiên web, bot và tab
   trình duyệt sẽ đá nhau liên tục. Zalo trên điện thoại dùng bình thường.
 - Tin thu hồi chỉ trích được tin gốc nếu bot nhận tin đó **từ lúc khởi động gần nhất** (nhớ trong RAM).

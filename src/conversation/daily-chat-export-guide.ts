@@ -10,11 +10,16 @@ thêm vào file ngay lúc nhận. File này chỉ tạo một lần, sửa tay t
   Mỗi tin một dòng \`- HH:mm **Người gửi**: nội dung\`. "Tôi (...)" là chủ tài khoản.
   Dòng \`> Trả lời ...\` là tin được trích dẫn, dòng "đã thu hồi" là tin bị rút lại.
 - \`<accountId>/<yyyy-MM-dd>/tin-nhan.jsonl\`: cùng dữ liệu, mỗi dòng một JSON (có msgId, senderId).
+- \`<accountId>/_trang-thai.md\`: bot còn chạy không, mất kết nối lúc nào, lần tải bù tin gần nhất.
+  Tin tải bù (lỡ lúc bot tắt) được nối vào cuối file nên có thể nằm lệch thứ tự giờ.
 
 Giờ theo múi giờ của bot (mặc định Asia/Ho_Chi_Minh).
 
 ## Khi được nhờ "lọc việc hôm nay" (hoặc một ngày cụ thể)
 
+0. Đọc \`<accountId>/_trang-thai.md\` TRƯỚC. Nếu tình trạng không phải "Đang kết nối", hoặc
+   "Cập nhật lúc" cũ hơn 15 phút so với bây giờ, ghi cảnh báo ngay đầu báo cáo: bot đã tắt /
+   mất kết nối từ mốc nào, log từ đó có thể thiếu tin. "Lỗi đăng nhập" nghĩa là phải quét QR lại.
 1. Đọc mọi file .md trong thư mục ngày đó (thiếu ngày thì báo, không đoán).
 2. Lấy ra các việc: ai giao, giao cho ai (thường là "Tôi"), nội dung, hạn chót nếu có.
 3. Xếp theo: Quá hạn / Hôm nay / Sắp tới / Không rõ hạn. Đánh dấu việc đã có câu trả lời

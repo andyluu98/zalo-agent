@@ -225,9 +225,14 @@ Zalo cookies. No LLM configuration is needed. Logged: text, your own messages (`
 and file links, stickers/voice placeholders, quoted replies, recalled messages. Dates follow
 `BOT_TIMEZONE`.
 
+Each account also gets `_trang-thai.md` (connected / disconnected / stopped / login error, refreshed
+every 5 minutes while connected). On every (re)connect the bot asks Zalo for messages after the last
+logged `msgId` and backfills them, deduplicated by `msgId`. On Windows,
+`scripts\windows\cai-tu-khoi-dong.ps1` registers a Task Scheduler job that starts the bot at logon.
+
 Summarise with a **Claude Desktop scheduled task** (runs locally); cloud routines cannot read your
-disk. Limits: messages received while the bot is offline are not backfilled yet; do not open Zalo
-Web for the same account (one web session only); logs contain other people's messages, keep them local.
+disk. Limits: how far back Zalo backfills is not yet measured; do not open Zalo Web for the same
+account (one web session only); logs contain other people's messages, keep them local.
 
 ## Dashboard
 

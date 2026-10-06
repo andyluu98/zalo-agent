@@ -21,6 +21,14 @@ Bản `0.x` nghĩa là API và cấu hình còn có thể đổi giữa các b�
   tin được trích dẫn, tên + link file đính kèm, tin bị thu hồi. Tự tạo `CLAUDE.md` /
   `AGENTS.md` ở gốc thư mục hướng dẫn Claude Code / Antigravity lọc việc từ log.
   Biến mới `CHAT_EXPORT_DIR` (mặc định `<DATA_DIR>/exports`).
+- **Sổ trạng thái** `<account>/_trang-thai.md` + `.json` cho tài khoản chỉ đọc: đang kết nối / mất
+  kết nối / đã dừng / lỗi đăng nhập, nhịp sống 5 phút. Hướng dẫn AI đọc nó trước để cảnh báo khi
+  log có thể thiếu.
+- **Tải bù tin nhắn bị lỡ** khi khởi động hoặc nối lại: `requestOldMessages` từ msgId cuối đã ghi
+  (lưu trong sổ trạng thái), lọc trùng theo msgId. Listener nhận thêm móc `onConnected`,
+  `onClosed`, `onOldMessages`.
+- **Script tự chạy khi đăng nhập Windows** (`scripts/windows/cai-tu-khoi-dong.ps1`, gỡ bằng
+  `go-tu-khoi-dong.ps1`): Task Scheduler, chạy ẩn, tự khởi động lại khi chết.
 
 ### Đổi
 

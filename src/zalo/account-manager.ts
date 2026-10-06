@@ -11,7 +11,7 @@ import { runStartupBackfill } from "../conversation/startup-backfill.js";
 import { clearPendingBatches } from "../middleware/message-batcher.js";
 import { createLogger } from "../shared/logger.js";
 import { routeIncomingMessage } from "./incoming-message-router.js";
-import { routeUndoEvent } from "./read-only-chat-log.js";
+import { danhDauDung, danhDauLoiDangNhap, mocChiDoc } from "./read-only-lifecycle.js";
 import { kenhCaNhan } from "./kenh-ca-nhan.js";
 import type { KenhLuot } from "./kenh-luot.js";
 import { loginWithStoredCredentials } from "./zalo-client.js";
@@ -106,7 +106,7 @@ export function attachAccount(config: AccountConfig, api: API): void {
     api,
     (raw) => routeIncomingMessage(config.id, api, selfId, raw),
     (event) => handleFriendEvent(config.id, api, event),
-    (event) => routeUndoEvent(config.id, event),
+    mocChiDoc(config.id, api, selfId),
   );
   running.set(config.id, { config, kenh: kenhCaNhan(api), selfId, stopListener });
   log.info({ accountId: config.id, label: config.label }, "Account sẵn sàng");
@@ -171,6 +171,7 @@ export function stopAccount(accountId: string): void {
   if (!account) return;
   account.stopListener();
   running.delete(accountId);
+  danhDauDung(accountId);
   log.info({ accountId }, "Đã dừng listener");
 }
 
@@ -184,6 +185,7 @@ export async function startAllAccounts(): Promise<void> {
       await startAccount(config.id);
     } catch (err) {
       log.error({ accountId: config.id, err }, "Không khởi động được account - bỏ qua");
+      danhDauLoiDangNhap(config.id, err);
     }
   }
 

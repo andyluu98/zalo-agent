@@ -3,6 +3,7 @@ import { getAccount } from "../config/account-store.js";
 import { chatExportDir } from "../config/env.js";
 import { botTimeZone } from "../config/runtime-tuning-settings.js";
 import { BoGhiLogNgay } from "../conversation/daily-chat-export.js";
+import { SoTrangThai } from "../conversation/trang-thai-chi-doc.js";
 import { xepHangTheoKhoa } from "../shared/xep-hang-theo-khoa.js";
 import { getThreadDisplayName, hasDisplayName } from "../conversation/thread-store.js";
 import { createLogger } from "../shared/logger.js";
@@ -29,12 +30,27 @@ function layBoGhiLog(): BoGhiLogNgay {
   return boGhiLog;
 }
 
+let soTrangThai: SoTrangThai | undefined;
+
+/** Sổ trạng thái + msgId cuối của account chỉ đọc (xem trang-thai-chi-doc.ts) */
+export function laySoTrangThai(): SoTrangThai {
+  soTrangThai ??= new SoTrangThai(chatExportDir, botTimeZone);
+  return soTrangThai;
+}
+
 export function ghiLogChiDoc(
   accountId: string,
   api: API,
   msg: ParsedMessage,
   choTenNhom: Promise<void> | undefined,
 ): void {
+  // Ghi nhận msgId NGAY (không đợi hàng chờ): đợt tải bù đến sau dựa vào nó để
+  // bỏ tin đã ghi, mà hàng chờ có thể còn đang đợi lấy tên nhóm
+  try {
+    laySoTrangThai().ghiNhanTin(accountId, msg.isGroup ? "group" : "user", msg.msgId, msg.sentAt);
+  } catch (err) {
+    log.error({ accountId, err }, "Không cập nhật được sổ trạng thái");
+  }
   void xepHangTheoKhoa(`${accountId}:${msg.threadId}`, async () => {
     // Đợi tên nhóm ở lần gặp đầu để file mang tên dễ đọc thay vì chỉ có id
     if (choTenNhom) await choTenNhom;

@@ -1,10 +1,18 @@
-import type { API, FriendEvent, Undo } from "zca-js";
+import type { API, FriendEvent, Message, ThreadType, Undo } from "zca-js";
 import { createLogger } from "../shared/logger.js";
 import { KeHoachKetNoiLai } from "./reconnect-planner.js";
 
 export type RawMessageHandler = (rawMessage: unknown) => Promise<void> | void;
 export type FriendEventHandler = (event: FriendEvent) => Promise<void> | void;
 export type UndoHandler = (event: Undo) => Promise<void> | void;
+
+/** Móc phụ cho chế độ chỉ đọc (thu hồi, tải bù tin cũ, sổ trạng thái) - lỗi trong móc không được làm chết listener */
+export type ListenerHooks = {
+  onUndo?: UndoHandler;
+  onOldMessages?: (messages: Message[], type: ThreadType) => Promise<void> | void;
+  onConnected?: () => void;
+  onClosed?: (code: number, reason: string) => void;
+};
 
 /** Trần jitter cộng vào backoff để nhiều account không reconnect đồng loạt */
 const JITTER_MS = 1_000;
@@ -22,7 +30,7 @@ export function startListener(
   api: API,
   onMessage: RawMessageHandler,
   onFriendEvent?: FriendEventHandler,
-  onUndo?: UndoHandler,
+  hooks: ListenerHooks = {},
 ): () => void {
   const log = createLogger(`listener:${accountId}`);
   let stopped = false;
@@ -85,15 +93,23 @@ export function startListener(
     });
   }
 
-  if (onUndo) {
-    api.listener.on("undo", (event) => {
-      Promise.resolve(onUndo(event)).catch((err) => log.error({ err }, "Lỗi xử lý undo"));
-    });
+  const { onUndo, onOldMessages, onConnected, onClosed } = hooks;
+  const chayMoc = (ten: string, fn: () => unknown): void => {
+    try {
+      Promise.resolve(fn()).catch((err) => log.error({ err }, `Lỗi xử lý ${ten}`));
+    } catch (err) {
+      log.error({ err }, `Lỗi xử lý ${ten}`);
+    }
+  };
+  if (onUndo) api.listener.on("undo", (event) => chayMoc("undo", () => onUndo(event)));
+  if (onOldMessages) {
+    api.listener.on("old_messages", (messages, type) => chayMoc("old_messages", () => onOldMessages(messages, type)));
   }
 
   api.listener.onConnected(() => {
     keHoach.danhDauKetNoi(Date.now());
     log.info("Listener đã kết nối");
+    if (onConnected) chayMoc("onConnected", onConnected);
   });
 
   api.listener.onError((error: unknown) => {
@@ -106,6 +122,7 @@ export function startListener(
   // bừa có thể nuốt mất chính cảnh báo cần thiết.
   api.listener.onClosed((code: number, reason: string) => {
     if (stopped) return;
+    if (onClosed) chayMoc("onClosed", () => onClosed(code, reason));
     xuLyDongVaLenLich(code, reason);
   });
 
