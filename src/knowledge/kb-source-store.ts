@@ -143,14 +143,18 @@ export function datTrangThai(
 
 // ===== Xóa sạch: bất biến quan trọng nhất của Kho tri thức =====
 //
-// Không có FOREIGN KEY (xem `kb-schema.ts`), nên phải tự dọn CẢ BỐN nơi trong
-// MỘT giao dịch: `kb_sources`, `kb_chunks`, `kb_chunks_fts`, `agent_kb_sources`.
+// Không có FOREIGN KEY (xem `kb-schema.ts`), nên phải tự dọn CẢ NĂM nơi trong
+// MỘT giao dịch: `kb_sources`, `kb_chunks`, `kb_chunks_fts`, `kb_chunk_vectors`,
+// `agent_kb_sources`.
 // Xóa hàng FTS TRƯỚC khi xóa `kb_chunks` - subquery tra rowid cần bảng
 // `kb_chunks` còn nguyên để biết đoạn nào thuộc nguồn đang xóa.
 
 const demDoanCuaNguonStmt = db.prepare(`SELECT COUNT(*) AS n FROM kb_chunks WHERE source_id = ?`);
 const xoaFtsCuaNguonStmt = db.prepare(
   `DELETE FROM kb_chunks_fts WHERE rowid IN (SELECT id FROM kb_chunks WHERE source_id = ?)`,
+);
+const xoaVectorCuaNguonStmt = db.prepare(
+  `DELETE FROM kb_chunk_vectors WHERE chunk_id IN (SELECT id FROM kb_chunks WHERE source_id = ?)`,
 );
 const xoaDoanCuaNguonStmt = db.prepare(`DELETE FROM kb_chunks WHERE source_id = ?`);
 const xoaGanAgentCuaNguonStmt = db.prepare(`DELETE FROM agent_kb_sources WHERE source_id = ?`);
@@ -160,6 +164,7 @@ export function xoaNguon(id: string): { soDoanDaXoa: number } {
   return trongGiaoDich(db, () => {
     const soDoanDaXoa = (demDoanCuaNguonStmt.get(id) as { n: number }).n;
     xoaFtsCuaNguonStmt.run(id);
+    xoaVectorCuaNguonStmt.run(id);
     xoaDoanCuaNguonStmt.run(id);
     xoaGanAgentCuaNguonStmt.run(id);
     xoaNguonStmt.run(id);

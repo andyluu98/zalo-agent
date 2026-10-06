@@ -64,12 +64,17 @@ function dungScope(agentId: string | undefined, accountId: string | undefined): 
   const accCuThe = accountId ? getAccount(accountId) : undefined;
   if (accountId && !accCuThe) return null;
   const loai = accCuThe?.loai ?? "ca_nhan";
-  if (!agentId) return { ...SCOPE_KHONG_CO_AGENT_THAT, account: { disabledTools: [], loai } };
+  // Mang theo Zalo ID nhận báo: `handoff_to_human.available()` đọc nó, thiếu
+  // thì tài khoản đã điền vẫn hiện tool "chưa dùng được"
+  const handoffNotifyUserId = accCuThe?.handoffNotifyUserId ?? "";
+  if (!agentId) {
+    return { ...SCOPE_KHONG_CO_AGENT_THAT, account: { disabledTools: [], loai, handoffNotifyUserId } };
+  }
   const agent = getAgent(agentId);
   if (!agent) return null;
   return {
     agent: { id: agent.id, disabledTools: agent.disabledTools },
-    account: { disabledTools: [], loai },
+    account: { disabledTools: [], loai, handoffNotifyUserId },
   };
 }
 

@@ -79,7 +79,7 @@ function configureSidecar(): void {
  * nào cho agent test ở file này, nên `available()` của nó luôn false ở đây -
  * đúng hành vi mặc định (agent mới tạo không tự đọc được tài liệu nào).
  */
-const GATED_TOOLS = ["read_image", "create_image", "kb_search"];
+const GATED_TOOLS = ["read_image", "create_image", "kb_search", "handoff_to_human"];
 
 function configureImageGen(): void {
   imageStore.updateImageSettings({
@@ -252,9 +252,19 @@ describe("tool-registry", () => {
     imageStore.clearImageSettings();
   });
 
-  it("runsInScheduledTurn khai đúng false cho đúng 10 tool, còn lại mặc định undefined (coi như true)", () => {
+  it("runsInScheduledTurn khai đúng false cho đúng 10 tool + handoff_to_human, còn lại mặc định undefined", () => {
     const bịLoại = registry.TOOL_DEFINITIONS.filter((t) => t.runsInScheduledTurn === false).map((t) => t.key);
-    assert.deepEqual(bịLoại.sort(), [...TOOL_LOAI_KHOI_LICH].sort());
+    // handoff_to_human tách riêng khỏi TOOL_LOAI_KHOI_LICH vì nó còn gate theo
+    // cấu hình account (hai ca trên dùng account chưa điền Zalo ID nhận báo)
+    assert.deepEqual(bịLoại.sort(), [...TOOL_LOAI_KHOI_LICH, "handoff_to_human"].sort());
+  });
+
+  it("handoff_to_human chỉ vào schema khi account đã điền Zalo ID nhận báo, và không vào lượt theo lịch", () => {
+    assert.equal(registry.buildAgentTools(makeContext([])).handoff_to_human, undefined);
+    const coId = makeContext([]);
+    const ctx = { ...coId, account: { ...coId.account, handoffNotifyUserId: "123456" } };
+    assert.ok(registry.buildAgentTools(ctx).handoff_to_human, "đã điền ID thì phải có tool");
+    assert.equal(registry.buildAgentTools({ ...ctx, isolated: true }).handoff_to_human, undefined);
   });
 
   it("catalog: key duy nhất, đủ metadata cho UI, nhóm hợp lệ", () => {

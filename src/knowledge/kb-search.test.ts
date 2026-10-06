@@ -61,18 +61,18 @@ describe("timTrongKhoTriThuc - bm25 trên dữ liệu tiếng Việt thật", ()
     binding.datNguonChoAgent(AGENT, [nguon.id]);
   });
 
-  it("ba câu hỏi kiểu khách hàng ra đúng đoạn ở hạng 1", () => {
+  it("ba câu hỏi kiểu khách hàng ra đúng đoạn ở hạng 1", async () => {
     for (const [cau, mong] of [
       ["phi ship noi thanh bao nhieu", "vận chuyển"],
       ["bảo hành bao lâu vậy shop", "Bảo hành"],
       ["đổi trả được không", "đổi trả"],
     ] as const) {
-      const kq = search.timTrongKhoTriThuc({ cauHoi: cau, agentId: AGENT, soLuong: 1 });
+      const kq = await search.timTrongKhoTriThuc({ cauHoi: cau, agentId: AGENT, soLuong: 1 });
       assert.match(kq[0]!.noiDung, new RegExp(mong), `câu "${cau}"`);
     }
   });
 
-  it("câu hỏi giờ mở cửa cũng ra đúng đoạn ở hạng 1 (đã đo, không phải suy luận)", () => {
+  it("câu hỏi giờ mở cửa cũng ra đúng đoạn ở hạng 1 (đã đo, không phải suy luận)", async () => {
     // Cả 4 câu hỏi mẫu đều ra đúng hạng 1 trên fixture này. Va chạm "đồng"
     // (tiền) và "đóng" (cửa) cùng bỏ dấu thành "dong" là rủi ro CÓ THẬT của
     // tìm theo từ khóa - đoạn "Phí vận chuyển" khớp "dong" tới 3 lần - nhưng
@@ -83,7 +83,7 @@ describe("timTrongKhoTriThuc - bm25 trên dữ liệu tiếng Việt thật", ()
     // (mỗi từ một trọng số IDF riêng) nên khớp đa dạng thắng khớp lặp cùng
     // một từ. soLuong giữ ở 2 để nếu thứ hạng có tụt lại (đổi fixture, đổi
     // dữ liệu), thông báo lỗi in ra cả 2 đoạn top, dễ dò nguyên nhân.
-    const kq = search.timTrongKhoTriThuc({ cauHoi: "mấy giờ đóng cửa", agentId: AGENT, soLuong: 2 });
+    const kq = await search.timTrongKhoTriThuc({ cauHoi: "mấy giờ đóng cửa", agentId: AGENT, soLuong: 2 });
     assert.match(
       kq[0]!.noiDung,
       /Giờ làm việc/,
@@ -91,7 +91,7 @@ describe("timTrongKhoTriThuc - bm25 trên dữ liệu tiếng Việt thật", ()
     );
   });
 
-  it("câu hỏi chỉ có từ mang chữ 'đ' vẫn ra đúng đoạn - chứng minh boDauTiengViet có tác dụng thật", () => {
+  it("câu hỏi chỉ có từ mang chữ 'đ' vẫn ra đúng đoạn - chứng minh boDauTiengViet có tác dụng thật", async () => {
     // "đ" (U+0111) là MỘT CHỮ CÁI riêng có gạch ngang, không phải chữ nền cộng
     // dấu phụ tổ hợp - unicode61 tự gấp được dấu thanh/mũ/móc (à, ả, ộ, ...)
     // nhưng KHÔNG tự gấp được "đ" thành "d" (xem kb-schema.ts). Cột `phang`
@@ -103,31 +103,31 @@ describe("timTrongKhoTriThuc - bm25 trên dữ liệu tiếng Việt thật", ()
     // dấu tổ hợp thật) và không đoạn nào khác trong fixture có từ "tra" - một
     // mình "trả" đã đủ cứu kết quả, che mất lỗ hổng thật của "đ". Đã đo bằng
     // sabotage thật trước khi viết test này (xem report task-3).
-    const kq = search.timTrongKhoTriThuc({ cauHoi: "đổi", agentId: AGENT, soLuong: 1 });
+    const kq = await search.timTrongKhoTriThuc({ cauHoi: "đổi", agentId: AGENT, soLuong: 1 });
     assert.match(kq[0]!.noiDung, /Chính sách đổi trả/, "câu hỏi 'đổi' một mình");
   });
 });
 
 describe("timTrongKhoTriThuc - cách ly theo nguồn", () => {
-  it("chỉ tìm trong nguồn ĐÃ BẬT cho agent đó", () => {
+  it("chỉ tìm trong nguồn ĐÃ BẬT cho agent đó", async () => {
     const nguonA = napNguon("nguồn A", ["Bảo hành 12 tháng cho mọi sản phẩm."]);
     const nguonB = napNguon("nguồn B", ["Bảo hành 24 tháng cho sản phẩm cao cấp."]);
     binding.datNguonChoAgent("agent-a", [nguonA.id]);
     binding.datNguonChoAgent("agent-b", [nguonB.id]);
 
-    const kq = search.timTrongKhoTriThuc({ cauHoi: "bảo hành", agentId: "agent-a" });
+    const kq = await search.timTrongKhoTriThuc({ cauHoi: "bảo hành", agentId: "agent-a" });
     assert.ok(
       kq.every((x) => x.sourceId === nguonA.id),
       "rò nguồn của agent khác",
     );
   });
 
-  it("agent chưa gán nguồn nào thì trả RỖNG, không phải trả tất cả", () => {
+  it("agent chưa gán nguồn nào thì trả RỖNG, không phải trả tất cả", async () => {
     napNguon("nguồn A", ["Bảo hành 12 tháng cho mọi sản phẩm."]);
-    assert.deepEqual(search.timTrongKhoTriThuc({ cauHoi: "bảo hành", agentId: "agent-chua-gan" }), []);
+    assert.deepEqual(await search.timTrongKhoTriThuc({ cauHoi: "bảo hành", agentId: "agent-chua-gan" }), []);
   });
 
-  it("lọc nguồn nằm TRONG SQL, không lọc sau khi lấy top", () => {
+  it("lọc nguồn nằm TRONG SQL, không lọc sau khi lấy top", async () => {
     // Dựng 30 đoạn NGẮN, khớp gần như tuyệt đối (bm25 ưu tiên đoạn ngắn hơn) ở
     // nguồn KHÔNG được bật, cộng 1 đoạn khớp nhưng DÀI HƠN ở nguồn ĐƯỢC bật.
     // 30 đoạn nhiễu luôn thắng bm25 nên chiếm trọn top-5 - lọc sau khi lấy
@@ -142,7 +142,7 @@ describe("timTrongKhoTriThuc - cách ly theo nguồn", () => {
     binding.datNguonChoAgent(AGENT, [nguonDung.id]);
     void nguonNhieu;
 
-    const kq = search.timTrongKhoTriThuc({ cauHoi: "bảo hành", agentId: AGENT, soLuong: 5 });
+    const kq = await search.timTrongKhoTriThuc({ cauHoi: "bảo hành", agentId: AGENT, soLuong: 5 });
     assert.equal(kq.length, 1);
     assert.equal(kq[0]!.sourceId, nguonDung.id);
   });

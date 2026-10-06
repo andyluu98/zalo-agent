@@ -91,7 +91,7 @@ export type ToolScope = {
    * gửi file rồi thất bại, người nhắn tưởng agent hỏng. Cùng lý do với việc
    * `agent` bắt buộc ở trên.
    */
-  account: Pick<AccountConfig, "disabledTools" | "loai">;
+  account: Pick<AccountConfig, "disabledTools" | "loai" | "handoffNotifyUserId">;
 };
 
 export type ToolDefinition = {

@@ -55,6 +55,18 @@ export function taoBangKnowledgeBase(db: DatabaseSync): void {
       tokenize = 'unicode61'
     );
 
+    -- Vector ngữ nghĩa của từng đoạn (tìm kiếm lai, xem kb-vector-store.ts).
+    -- Khóa theo chunk_id (1 đoạn = 1 vector) kèm TÊN MODEL đã sinh ra nó: đổi
+    -- model embedding thì vector cũ vô nghĩa (khác không gian), worker nền tự
+    -- sinh lại và lúc tìm chỉ so với vector CÙNG model với câu hỏi.
+    -- vec là Float32Array thô (little-endian, 4 byte/chiều).
+    CREATE TABLE IF NOT EXISTS kb_chunk_vectors (
+      chunk_id INTEGER PRIMARY KEY,
+      model    TEXT NOT NULL,
+      dim      INTEGER NOT NULL,
+      vec      BLOB NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS agent_kb_sources (
       agent_id  TEXT NOT NULL,
       source_id TEXT NOT NULL,

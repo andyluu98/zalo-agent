@@ -302,6 +302,15 @@ function runMigrations(): void {
   // Mặc định TẮT để account cũ giữ nguyên hành vi.
   addColumnIfMissing("accounts", "read_only", "INTEGER NOT NULL DEFAULT 0");
 
+  // Chuyển cho người thật: bot tự TẮT ở thread khi khách cần nhân viên (tool
+  // handoff_to_human), ghi lại lúc nào + vì sao để dashboard hiện "Cần người
+  // hỗ trợ". Bật lại bot ở thread (dashboard) thì xóa dấu này. Rỗng = không có.
+  addColumnIfMissing("threads", "handoff_at", "TEXT NOT NULL DEFAULT ''");
+  addColumnIfMissing("threads", "handoff_reason", "TEXT NOT NULL DEFAULT ''");
+  // Zalo ID nhận tin báo khi bot chuyển khách cho người thật. Rỗng = tắt hẳn
+  // tính năng (tool không được cấp) - opt-in, account cũ giữ nguyên hành vi.
+  addColumnIfMissing("accounts", "handoff_notify_user_id", "TEXT NOT NULL DEFAULT ''");
+
   // Loại KÊNH của tài khoản: "ca_nhan" (zca-js, giao thức đảo ngược) hoặc
   // "bot" (Zalo Bot API chính thức). Mặc định "ca_nhan" để mọi dòng đã có từ
   // trước giữ nguyên hành vi - đây là loại duy nhất tồn tại trước cột này.

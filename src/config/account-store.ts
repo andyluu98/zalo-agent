@@ -56,6 +56,11 @@ export type AccountConfig = {
    * chủ tài khoản) vào history và file log theo ngày để AI khác đọc lọc việc.
    */
   readOnly?: boolean;
+  /**
+   * Zalo ID (user) nhận tin báo khi bot chuyển khách cho người thật. Rỗng =
+   * tắt: tool `handoff_to_human` không được cấp cho account này.
+   */
+  handoffNotifyUserId?: string;
 };
 
 type Row = {
@@ -77,6 +82,7 @@ type Row = {
   auto_accept_friends: number;
   auto_accept_friend_delay_minutes: number;
   read_only: number;
+  handoff_notify_user_id: string;
 };
 
 const toConfig = (r: Row): AccountConfig => ({
@@ -99,13 +105,15 @@ const toConfig = (r: Row): AccountConfig => ({
   autoAcceptFriends: r.auto_accept_friends === 1,
   autoAcceptFriendDelayMinutes: r.auto_accept_friend_delay_minutes,
   readOnly: r.read_only === 1,
+  handoffNotifyUserId: r.handoff_notify_user_id,
 });
 
 const SELECT = `SELECT id, label, enabled, agent_id, allowlist_mode, allowlist_user_ids,
                        group_require_mention, respond_to_groups, group_passive_listen,
                        auto_react_enabled, auto_react_icon, typing_indicator_enabled,
                        disabled_tools, loai, bot_token_enc,
-                       auto_accept_friends, auto_accept_friend_delay_minutes, read_only
+                       auto_accept_friends, auto_accept_friend_delay_minutes, read_only,
+                       handoff_notify_user_id
                 FROM accounts`;
 
 export function listAccounts(): AccountConfig[] {
@@ -150,7 +158,8 @@ export function updateAccount(
        allowlist_user_ids = ?, group_require_mention = ?, respond_to_groups = ?,
        group_passive_listen = ?, auto_react_enabled = ?, auto_react_icon = ?,
        typing_indicator_enabled = ?, disabled_tools = ?,
-       auto_accept_friends = ?, auto_accept_friend_delay_minutes = ?, read_only = ?
+       auto_accept_friends = ?, auto_accept_friend_delay_minutes = ?, read_only = ?,
+       handoff_notify_user_id = ?
      WHERE id = ?`,
   ).run(
     next.label,
@@ -168,6 +177,7 @@ export function updateAccount(
     next.autoAcceptFriends ? 1 : 0,
     next.autoAcceptFriendDelayMinutes,
     next.readOnly ? 1 : 0,
+    next.handoffNotifyUserId ?? "",
     id,
   );
   return getAccount(id);

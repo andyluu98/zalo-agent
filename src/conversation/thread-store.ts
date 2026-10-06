@@ -9,6 +9,9 @@ export type ThreadRow = {
   messageCount: number;
   lastMessageAt: string | null;
   lastSenderName: string | null;
+  /** Lúc bot chuyển thread này cho người thật (ISO), rỗng = không - xem thread-handoff-store.ts */
+  handoffAt: string;
+  handoffReason: string;
 };
 
 const upsertStmt = db.prepare(`
@@ -75,12 +78,19 @@ export function getThreadDisplayName(accountId: string, threadId: string): strin
   return row?.display_name ?? "";
 }
 
-const setEnabledStmt = db.prepare(
-  "UPDATE threads SET bot_enabled = ? WHERE account_id = ? AND thread_id = ?",
-);
+// Bật lại bot thì xóa luôn dấu "chuyển cho người thật": người vận hành bật
+// lại tức là đã xử lý xong, giữ dấu là dashboard báo "cần người" mãi mãi.
+// Tắt thì GIỮ dấu (tắt tay một thread đang chờ người không xóa lý do của nó).
+const setEnabledStmt = db.prepare(`
+  UPDATE threads SET bot_enabled = ?,
+         handoff_at = CASE WHEN ? = 1 THEN '' ELSE handoff_at END,
+         handoff_reason = CASE WHEN ? = 1 THEN '' ELSE handoff_reason END
+   WHERE account_id = ? AND thread_id = ?
+`);
 
 export function setBotEnabled(accountId: string, threadId: string, enabled: boolean): boolean {
-  const result = setEnabledStmt.run(enabled ? 1 : 0, accountId, threadId);
+  const v = enabled ? 1 : 0;
+  const result = setEnabledStmt.run(v, v, v, accountId, threadId);
   return result.changes > 0;
 }
 
@@ -139,7 +149,7 @@ export function getThreadContextEpoch(accountId: string, threadId: string): numb
 
 const listStmt = db.prepare(`
   SELECT account_id, thread_id, thread_type, display_name, bot_enabled,
-         message_count, last_message_at, last_sender_name
+         message_count, last_message_at, last_sender_name, handoff_at, handoff_reason
   FROM threads
   WHERE (? = '' OR account_id = ?) AND (display_name LIKE ? OR thread_id LIKE ?)
   ORDER BY last_message_at DESC
@@ -158,7 +168,7 @@ export function listThreads(params: {
   type Row = {
     account_id: string; thread_id: string; thread_type: number; display_name: string;
     bot_enabled: number; message_count: number; last_message_at: string | null;
-    last_sender_name: string | null;
+    last_sender_name: string | null; handoff_at: string; handoff_reason: string;
   };
   const rows = listStmt.all(
     acc, acc, like, like, params.limit ?? 50, params.offset ?? 0,
@@ -172,6 +182,8 @@ export function listThreads(params: {
     messageCount: r.message_count,
     lastMessageAt: r.last_message_at,
     lastSenderName: r.last_sender_name,
+    handoffAt: r.handoff_at,
+    handoffReason: r.handoff_reason,
   }));
 }
 

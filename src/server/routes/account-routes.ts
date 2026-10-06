@@ -69,6 +69,13 @@ const patchSchema = z.object({
   autoAcceptFriends: z.boolean().optional(),
   autoAcceptFriendDelayMinutes: z.number().int().min(0).max(1440).optional(),
   readOnly: z.boolean().optional(),
+  // Zalo ID nhận báo chuyển người thật. Chỉ chữ số/chữ cái (ID user Zalo là
+  // dãy số, chat_id của Bot API là chuỗi chữ-số) - chặn ký tự lạ ngay ở API.
+  handoffNotifyUserId: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9_-]{0,64}$/, "Zalo ID chỉ gồm chữ số/chữ cái")
+    .optional(),
 });
 
 const withStatus = (a: ReturnType<typeof listAccounts>[number]) => ({

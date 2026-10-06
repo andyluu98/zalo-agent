@@ -62,7 +62,7 @@ function napQuaWorker(ten: string, chu: string): { id: string } {
 }
 
 describe("timTrongKhoTriThuc - tra bằng TÊN TÀI LIỆU/TÊN NGUỒN (I1, qua đường nạp THẬT)", () => {
-  it("tra bằng chính tiêu đề H1 của tài liệu ra đúng đoạn", () => {
+  it("tra bằng chính tiêu đề H1 của tài liệu ra đúng đoạn", async () => {
     // Ca đã đo hỏng: H1 không có thân bài ngay dưới nên bị bỏ qua, và
     // `tieuDeHienTai` bị H2 ghi đè trước khi kịp có đoạn nào chốt dưới H1 -
     // "chính sách đổi trả" (tên tài liệu) tra ra 0 dòng dù nội dung đúng nằm
@@ -77,7 +77,7 @@ describe("timTrongKhoTriThuc - tra bằng TÊN TÀI LIỆU/TÊN NGUỒN (I1, qua
       "Tài liệu vận hành",
       "# Chính sách đổi trả\n\n## Điều kiện\n\nHàng còn nguyên tem.\n\n## Thời hạn\n\nTrong vòng 7 ngày.",
     );
-    const kq = search.timTrongKhoTriThuc({ cauHoi: "chính sách đổi trả", agentId: AGENT });
+    const kq = await search.timTrongKhoTriThuc({ cauHoi: "chính sách đổi trả", agentId: AGENT });
     assert.ok(kq.length > 0, "tra đúng tên tài liệu (H1) mà ra rỗng");
     assert.match(
       kq[0]!.tieuDe,
@@ -86,18 +86,18 @@ describe("timTrongKhoTriThuc - tra bằng TÊN TÀI LIỆU/TÊN NGUỒN (I1, qua
     );
   });
 
-  it("tra bằng TÊN NGUỒN ra đúng đoạn", () => {
+  it("tra bằng TÊN NGUỒN ra đúng đoạn", async () => {
     napQuaWorker("Bảng giá quán", "Cà phê 25.000đ.");
-    const kq = search.timTrongKhoTriThuc({ cauHoi: "bảng giá quán", agentId: AGENT });
+    const kq = await search.timTrongKhoTriThuc({ cauHoi: "bảng giá quán", agentId: AGENT });
     assert.ok(kq.length > 0, "tra đúng tên nguồn mà ra rỗng");
   });
 });
 
 describe("timTrongKhoTriThuc - khử trùng nội dung (I3)", () => {
-  it("hai nguồn nội dung y hệt chỉ chiếm MỘT slot", () => {
+  it("hai nguồn nội dung y hệt chỉ chiếm MỘT slot", async () => {
     const nguonA = napQuaWorker("Nguồn A", "Cà phê 25.000đ.");
     const nguonB = napQuaWorker("Nguồn B", "Cà phê 25.000đ.");
-    const kq = search.timTrongKhoTriThuc({ cauHoi: "cà phê", agentId: AGENT, soLuong: 5 });
+    const kq = await search.timTrongKhoTriThuc({ cauHoi: "cà phê", agentId: AGENT, soLuong: 5 });
     assert.equal(kq.length, 1, `phải khử còn 1, ra: ${JSON.stringify(kq.map((x) => x.sourceId))}`);
     assert.ok(
       kq[0]!.sourceId === nguonA.id || kq[0]!.sourceId === nguonB.id,
@@ -105,7 +105,7 @@ describe("timTrongKhoTriThuc - khử trùng nội dung (I3)", () => {
     );
   });
 
-  it("khử trùng KHÔNG làm thiếu: vẫn đủ soLuong đoạn khác nhau", () => {
+  it("khử trùng KHÔNG làm thiếu: vẫn đủ soLuong đoạn khác nhau", async () => {
     // `timTheoTuKhoa` LIMIT đúng trong SQL nên khử SAU đó sẽ THIẾU nếu không
     // lấy dư trước (đúng lỗi gốc) - 2 đoạn trùng + 5 đoạn khác nhau, xin 5, kỳ
     // vọng đủ 5 (khử 1 đoạn trùng rồi lấy bù đoạn thứ 6 đang xếp hạng thấp hơn
@@ -113,20 +113,20 @@ describe("timTrongKhoTriThuc - khử trùng nội dung (I3)", () => {
     napQuaWorker("Nguồn A", "Cà phê 25.000đ.");
     napQuaWorker("Nguồn B", "Cà phê 25.000đ.");
     for (let i = 0; i < 5; i++) napQuaWorker(`Khác ${i}`, `Cà phê loại ${i} giá ${i}0.000đ.`);
-    const kq = search.timTrongKhoTriThuc({ cauHoi: "cà phê", agentId: AGENT, soLuong: 5 });
+    const kq = await search.timTrongKhoTriThuc({ cauHoi: "cà phê", agentId: AGENT, soLuong: 5 });
     assert.equal(kq.length, 5, `khử trùng xong bị hụt: ${JSON.stringify(kq.map((x) => x.noiDung))}`);
   });
 
-  it("nội dung KHÁC nhau (dù tương tự) không bị khử oan", () => {
+  it("nội dung KHÁC nhau (dù tương tự) không bị khử oan", async () => {
     napQuaWorker("Nguồn A", "Cà phê 25.000đ.");
     napQuaWorker("Nguồn B", "Cà phê 30.000đ.");
-    const kq = search.timTrongKhoTriThuc({ cauHoi: "cà phê", agentId: AGENT, soLuong: 5 });
+    const kq = await search.timTrongKhoTriThuc({ cauHoi: "cà phê", agentId: AGENT, soLuong: 5 });
     assert.equal(kq.length, 2, "hai đoạn giá khác nhau bị khử nhầm thành một");
   });
 });
 
 describe("timTrongKhoTriThuc - một tài liệu lớn không chiếm trọn slot của câu hỏi chung chung (Important c, vòng rà soát lần 2)", () => {
-  it("tài liệu nhiều mục (breadcrumb+tên nguồn lặp lại mỗi đoạn) không đẩy hết tài liệu khác ra khỏi top-k", () => {
+  it("tài liệu nhiều mục (breadcrumb+tên nguồn lặp lại mỗi đoạn) không đẩy hết tài liệu khác ra khỏi top-k", async () => {
     // Tài liệu LỚN: 6 mục, mỗi mục đều chứa từ "chính sách" (qua breadcrumb
     // "Sổ tay vận hành cửa hàng > <mục>") - nếu phang lặp tên nguồn+breadcrumb
     // trên MỌI đoạn làm bm25 lệch hẳn về tài liệu này, top-k có thể bị nó
@@ -147,7 +147,7 @@ describe("timTrongKhoTriThuc - một tài liệu lớn không chiếm trọn slo
     napQuaWorker("Chính sách bảo hành B", "Bảo hành 24 tháng cho đồ gia dụng.");
     napQuaWorker("Chính sách bảo hành C", "Bảo hành 6 tháng cho phụ kiện.");
 
-    const kq = search.timTrongKhoTriThuc({ cauHoi: "chính sách bảo hành", agentId: AGENT, soLuong: 5 });
+    const kq = await search.timTrongKhoTriThuc({ cauHoi: "chính sách bảo hành", agentId: AGENT, soLuong: 5 });
     const soNguonKhacNhau = new Set(kq.map((x) => x.sourceId)).size;
     // Ghi số THẬT - không tự chỉnh ngưỡng để test luôn xanh. Đo được 4/4 nguồn
     // còn thấy trong top-5 (vòng rà soát lần 2) - ngưỡng 3 (không phải 4, chốt

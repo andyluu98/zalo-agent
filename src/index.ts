@@ -3,6 +3,7 @@ import { getEffectiveLlmSettings } from "./config/runtime-llm-settings.js";
 import { closeHistoryStore } from "./conversation/history-store.js";
 import { startMediaCleanupSchedule } from "./conversation/media-store.js";
 import { batDauWorker as batDauKbIngestWorker } from "./knowledge/kb-ingest-worker.js";
+import { batDauNhungNen as batDauKbEmbeddingWorker } from "./knowledge/kb-embedding-worker.js";
 import { startMcpManager } from "./mcp/mcp-manager.js";
 import { startScheduler, stopScheduler } from "./scheduler/scheduler-loop.js";
 import { startDashboardServer, stopDashboardServer } from "./server/dashboard-server.js";
@@ -38,6 +39,7 @@ let shuttingDown = false;
 // đó (tín hiệu tắt tới cực sớm) thì vẫn có hàm hợp lệ để gọi thay vì đọc phải
 // `undefined`.
 let stopKbIngestWorker: () => void = () => {};
+let stopKbEmbeddingWorker: () => void = () => {};
 let stopFriendSweep: () => void = () => {};
 let stopMcpManager: () => void = () => {};
 function shutdown(signal: string): void {
@@ -47,6 +49,7 @@ function shutdown(signal: string): void {
   stopScheduler();
   stopFriendSweep();
   stopKbIngestWorker();
+  stopKbEmbeddingWorker();
   stopMcpManager();
   stopDashboardServer();
   stopAllAccounts();
@@ -95,6 +98,7 @@ stopMcpManager = startMcpManager();
 // upload (xem đầu file kb-ingest-worker.ts). Tự gỡ mọi nguồn kẹt ở dang_xu_ly
 // từ lần chạy trước lúc khởi động.
 stopKbIngestWorker = batDauKbIngestWorker();
+stopKbEmbeddingWorker = batDauKbEmbeddingWorker();
 
 startAllAccounts()
   // Scheduler cần account đã sẵn sàng để lấy api lúc dispatch - khởi động SAU,
