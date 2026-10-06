@@ -12,6 +12,7 @@ mỗi account một "não" riêng, 15 công cụ, dashboard web đầy đủ. T�
   <a href="#cài-đặt">Cài đặt</a> •
   <a href="#hai-loại-kênh">Hai loại kênh</a> •
   <a href="#agent-làm-được-gì">Tính năng</a> •
+  <a href="#chế-độ-chỉ-đọc-log-zalo-theo-ngày-cho-ai-lọc-việc">Chế độ chỉ đọc</a> •
   <a href="#dashboard">Dashboard</a> •
   <a href="#an-toàn---đọc-trước-khi-chạy">An toàn</a> •
   <a href="docs/system-architecture.md">Kiến trúc</a> •
@@ -26,6 +27,12 @@ mỗi account một "não" riêng, 15 công cụ, dashboard web đầy đủ. T�
   <img src="https://img.shields.io/badge/AI_SDK-Vercel-000000?style=flat-square&logo=vercel&logoColor=white" alt="Vercel AI SDK" />
   <img src="https://img.shields.io/badge/tests-2657%20xanh-brightgreen?style=flat-square" alt="tests" />
 </p>
+
+> [!NOTE]
+> **Bản fork** của [vuhai2002/zalo-agent](https://github.com/vuhai2002/zalo-agent) (MIT), thêm
+> **chế độ chỉ đọc**: tài khoản Zalo không trả lời ai, chỉ ghi mọi tin nhắn ra file theo ngày để
+> Claude / Antigravity đọc và lọc việc cần làm. Xem
+> [Chế độ chỉ đọc](#chế-độ-chỉ-đọc-log-zalo-theo-ngày-cho-ai-lọc-việc). Mọi tính năng gốc giữ nguyên.
 
 ---
 
@@ -191,21 +198,97 @@ Ba loại lịch: `once`, `every`, `cron`. Đặt bằng lời ngay trong chat h
 
 ### Chế độ chỉ đọc: log Zalo theo ngày cho AI lọc việc
 
-Dành cho người làm việc nhiều trên Zalo, tin trôi nhanh và hay sót việc. Bật
-**Accounts -> Policies -> Chế độ chỉ đọc**: tài khoản im lặng hoàn toàn (không trả
-lời, không báo "đã nhận", không gửi lịch hẹn), chỉ ghi mọi tin ra file:
+Dành cho người làm việc nhiều trên Zalo: tin trôi nhanh, việc được giao giữa chừng một nhóm đông
+rất dễ bị sót. Bật chế độ này thì tài khoản **im lặng hoàn toàn** (không trả lời, không báo "đã
+nhận", không gửi lịch hẹn) và chỉ làm một việc: ghi mọi tin ra file theo ngày. Việc đọc và tổng hợp
+giao cho một AI khác (Claude Code, Claude Desktop, Antigravity) chạy theo lịch trên máy bạn.
+
+**Không cần cấu hình LLM**: chế độ này không gọi model nào. Dòng cảnh báo "Chưa cấu hình LLM" lúc
+khởi động có thể bỏ qua.
+
+#### Cài đặt nhanh
+
+1. Cài như mục [Cài đặt](#cài-đặt), thêm vào `.env` thư mục log (nên để ngoài `data/`, vì `data/`
+   chứa cookie Zalo):
+   ```env
+   CHAT_EXPORT_DIR=F:\Zalo-Logs
+   ```
+2. `pnpm build:web` rồi `pnpm start`, mở `http://127.0.0.1:3900`, đăng nhập bằng `DASHBOARD_PASSWORD`.
+3. **Accounts** > thêm account, loại kênh **cá nhân** > quét QR bằng app Zalo (nên dùng nick phụ).
+4. Sửa account > **Policies** > bật **Chế độ chỉ đọc** > Lưu.
+5. Nhắn thử vài tin (chữ, file, sticker, trả lời một tin) rồi mở thư mục log kiểm tra.
+
+#### Ghi lại những gì
+
+| Loại | Trong log |
+|---|---|
+| Tin chữ, nhiều dòng | nguyên văn, giữ xuống dòng |
+| Tin chính bạn gửi (từ điện thoại / Zalo PC) | ghi là `Tôi (tên)` |
+| Ảnh | `[ảnh]` + link ảnh Zalo |
+| File, video, tin thoại, liên kết | tên + link gốc Zalo (không tải file về) |
+| Sticker, vị trí | dấu giữ chỗ `[sticker]`, `[vị trí]` |
+| Tin trả lời (trích dẫn) | dòng `> Trả lời **Người A**: nội dung tin gốc` |
+| Tin bị thu hồi | dòng "đã thu hồi một tin", kèm giờ + trích đoạn tin gốc nếu còn nhớ |
+| Nhóm không @mention, người ngoài allowlist | ghi hết, chế độ này không lọc |
+
+#### Cấu trúc thư mục
 
 ```
-data/exports/<account>/2026-10-05/
-  nhom-kinh-doanh_123456.md   # mỗi cuộc trò chuyện một file, mỗi tin một dòng
-  tin-nhan.jsonl              # cùng dữ liệu cho máy đọc
-data/exports/CLAUDE.md        # hướng dẫn AI lọc việc (sửa tay được)
+<CHAT_EXPORT_DIR>/                      mặc định data/exports
+  CLAUDE.md, AGENTS.md                  hướng dẫn AI lọc việc (tạo 1 lần, sửa tay thoải mái)
+  <account-id>/
+    2026-10-05/
+      nhom-kinh-doanh_123456789.md      mỗi cuộc trò chuyện 1 file / ngày
+      nguyen-van-a_987654321.md
+      tin-nhan.jsonl                    mọi tin trong ngày, 1 dòng JSON / tin (có msgId, senderId)
 ```
 
-Mở thư mục `data/exports` bằng Claude Code hoặc Antigravity rồi nhờ "lọc việc hôm
-nay": AI đọc log, trả bảng việc kèm người giao, hạn chót, trạng thái và nguồn (file
-+ giờ). Muốn để log ở chỗ khác thì đặt `CHAT_EXPORT_DIR` trong `.env`. Log chứa tin
-nhắn của người khác: giữ trên máy, không đưa lên GitHub (`data/` đã gitignore).
+Một file `.md` trông như sau:
+
+```markdown
+# Nhóm Kinh Doanh (Nhóm) - 2026-10-05
+
+- Tài khoản: acc-chinh
+- Thread ID: 123456789
+
+- 09:15 **Anh B**: Gửi báo giá cho khách A trước 17h nhé
+- 09:17 **Tôi (Andy)**: ok anh, chiều em gửi
+  > Trả lời **Anh B**: Gửi báo giá cho khách A trước 17h nhé
+- 16:40 **Tôi (Andy)**: [file]
+  - Đính kèm (file): [bao-gia-khach-a.xlsx](https://...)
+```
+
+Ngày tính theo `BOT_TIMEZONE` (mặc định `Asia/Ho_Chi_Minh`). Tin được **nối thêm ngay khi tới**,
+nên AI đọc lúc nào cũng thấy dữ liệu mới nhất. Tên file chốt ở tin đầu tiên trong ngày; nhóm đổi
+tên giữa ngày vẫn ghi chung một file.
+
+#### Tự tổng hợp báo cáo bằng lịch chạy của Claude
+
+Dùng **tác vụ hẹn giờ của Claude Desktop** (Scheduled tasks, chạy trên máy bạn). Đừng dùng
+routine trên cloud (`/schedule`): nó chạy trên máy chủ của Anthropic, không đọc được ổ đĩa của bạn.
+Câu lệnh mẫu:
+
+```text
+Đọc thư mục F:\Zalo-Logs theo hướng dẫn trong F:\Zalo-Logs\CLAUDE.md.
+Lọc việc trong log của hôm nay (giờ Việt Nam), gồm cả việc tồn 3 ngày trước chưa thấy trả lời "xong/ok".
+Ghi kết quả ra F:\Zalo-Logs\bao-cao\<yyyy-MM-dd>.md dạng bảng:
+Việc | Người giao | Hạn | Trạng thái | Nguồn (file + giờ).
+Không bịa thông tin ngoài log; ngày nào không có thư mục thì ghi "không có log".
+```
+
+Tác vụ chỉ chạy khi máy bật và cả zalo-agent lẫn Claude Desktop đang mở.
+
+#### Giới hạn cần biết
+
+- **Tin đến lúc bot tắt sẽ bị mất.** Bot chỉ nghe tin trực tiếp; chưa tải bù tin cũ khi khởi động
+  lại. Để bot chạy liên tục nếu không muốn sót.
+- **Không mở Zalo Web của chính nick đó trên trình duyệt**: Zalo chỉ cho một phiên web, bot và tab
+  trình duyệt sẽ đá nhau liên tục. Zalo trên điện thoại dùng bình thường.
+- Tin thu hồi chỉ trích được tin gốc nếu bot nhận tin đó **từ lúc khởi động gần nhất** (nhớ trong RAM).
+- File, ảnh chỉ lưu link của Zalo, không tải bản sao về thư mục log.
+- Bật chế độ này thì lịch sử trong DB **không bị cắt** theo `HISTORY_MAX_MESSAGES_PER_THREAD`, DB sẽ
+  lớn dần theo thời gian.
+- Log chứa tin nhắn của người khác: giữ trên máy, không đưa lên GitHub hay dịch vụ ngoài.
 
 ## Dashboard
 
@@ -399,6 +482,13 @@ pnpm install
 pnpm build:web    # thiếu bước này dashboard vẫn là bản cũ
 ```
 
+Lấy bản cập nhật từ repo gốc (đã cấu hình remote `upstream`):
+
+```bash
+git fetch upstream
+git merge upstream/main
+```
+
 Dữ liệu trong `data/` giữ nguyên, migration chạy tự động lúc khởi động.
 
 ## Đóng góp
@@ -409,5 +499,5 @@ Mở issue hoặc pull request. Trước khi gửi PR: `pnpm typecheck` và `pnp
 
 [MIT](LICENSE)
 
-Xây trên [zca-js](https://github.com/RFS-ADRENO/zca-js) (MIT) và
+Fork từ [vuhai2002/zalo-agent](https://github.com/vuhai2002/zalo-agent). Xây trên [zca-js](https://github.com/RFS-ADRENO/zca-js) (MIT) và
 [Vercel AI SDK](https://github.com/vercel/ai) (Apache-2.0).

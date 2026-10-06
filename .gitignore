@@ -27,3 +27,6 @@ qr*.png
 
 # Scratch của quy trình thực thi kế hoạch (ledger, review package) - không phải mã nguồn
 .superpowers/
+
+# Trạng thái phiên của Claude Code trên máy
+.claude/session-state/

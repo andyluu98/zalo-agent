@@ -13,6 +13,7 @@ Provider-agnostic: any OpenAI-compatible endpoint, Anthropic, or Google.
   <a href="#install">Install</a> •
   <a href="#two-channel-types">Channels</a> •
   <a href="#what-the-agent-can-do">Features</a> •
+  <a href="#read-only-mode-daily-zalo-logs-for-ai-task-extraction">Read-only mode</a> •
   <a href="#dashboard">Dashboard</a> •
   <a href="#safety---read-this-first">Safety</a> •
   <a href="README.md">Tiếng Việt</a>
@@ -26,6 +27,11 @@ Provider-agnostic: any OpenAI-compatible endpoint, Anthropic, or Google.
   <img src="https://img.shields.io/badge/AI_SDK-Vercel-000000?style=flat-square&logo=vercel&logoColor=white" alt="Vercel AI SDK" />
   <img src="https://img.shields.io/badge/tests-2657%20passing-brightgreen?style=flat-square" alt="tests" />
 </p>
+
+> [!NOTE]
+> **Fork** of [vuhai2002/zalo-agent](https://github.com/vuhai2002/zalo-agent) (MIT) adding a
+> **read-only mode**: the Zalo account never replies, it only writes every message to daily files
+> so Claude / Antigravity can read them and extract tasks. All upstream features are unchanged.
 
 ---
 
@@ -202,6 +208,26 @@ Three kinds: `once`, `every`, `cron`. Created from chat in plain language, or fr
   budget is exceeded, old images are dropped before old messages
 - **Durable facts** via `save_memory`, with asymmetric privacy rules between direct chats and groups
 - Received images are stored, described by a secondary vision model, and cached so later turns cost nothing
+
+### Read-only mode: daily Zalo logs for AI task extraction
+
+Turn on **Accounts > Policies > Read-only mode**. The account goes fully silent (no replies, no
+"delivered" receipts, no scheduled sends) and appends every message, as it arrives, to:
+
+```
+<CHAT_EXPORT_DIR>/<account-id>/<yyyy-MM-dd>/<thread-name>_<threadId>.md   one file per chat per day
+<CHAT_EXPORT_DIR>/<account-id>/<yyyy-MM-dd>/tin-nhan.jsonl                every message, one JSON line each
+<CHAT_EXPORT_DIR>/CLAUDE.md, AGENTS.md                                   instructions for the AI reader
+```
+
+`CHAT_EXPORT_DIR` defaults to `data/exports`; pointing it outside `data/` keeps the AI away from the
+Zalo cookies. No LLM configuration is needed. Logged: text, your own messages (`Tôi (...)`), image
+and file links, stickers/voice placeholders, quoted replies, recalled messages. Dates follow
+`BOT_TIMEZONE`.
+
+Summarise with a **Claude Desktop scheduled task** (runs locally); cloud routines cannot read your
+disk. Limits: messages received while the bot is offline are not backfilled yet; do not open Zalo
+Web for the same account (one web session only); logs contain other people's messages, keep them local.
 
 ## Dashboard
 
@@ -386,5 +412,5 @@ Issues and pull requests welcome. Before opening a PR, `pnpm typecheck` and `pnp
 
 [MIT](LICENSE)
 
-Built on [zca-js](https://github.com/RFS-ADRENO/zca-js) (MIT) and the
+Forked from [vuhai2002/zalo-agent](https://github.com/vuhai2002/zalo-agent). Built on [zca-js](https://github.com/RFS-ADRENO/zca-js) (MIT) and the
 [Vercel AI SDK](https://github.com/vercel/ai) (Apache-2.0).
