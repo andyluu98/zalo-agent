@@ -102,7 +102,7 @@
   const D = window.CONG_VIEC;
   const $ = (id) => document.getElementById(id);
   if (!D || !Array.isArray(D.viec)) {
-    $("list").innerHTML = '<li class="nodata">Chưa có dữ liệu. Chạy lượt tổng hợp lần đầu để tạo <b>du-lieu-dashboard.js</b>.</li>';
+    $("list").innerHTML = '<li class="nodata">Không thấy <b>du-lieu-dashboard.js</b> cạnh file này. Nếu đây là bản mẫu trong repo (<code>templates/cong-viec/</code>) thì mở bản trong thư mục log: <b>&lt;CHAT_EXPORT_DIR&gt;/cong-viec/dashboard.html</b>. Nếu đúng thư mục log rồi thì chạy lượt tổng hợp lần đầu để tạo dữ liệu.</li>';
     return;
   }
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
