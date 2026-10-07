@@ -215,9 +215,13 @@ Turn on **Accounts > Policies > Read-only mode**. The account goes fully silent 
 "delivered" receipts, no scheduled sends) and appends every message, as it arrives, to:
 
 ```
-<CHAT_EXPORT_DIR>/<account-id>/<yyyy-MM-dd>/<thread-name>_<threadId>.md   one file per chat per day
-<CHAT_EXPORT_DIR>/<account-id>/<yyyy-MM-dd>/tin-nhan.jsonl                every message, one JSON line each
-<CHAT_EXPORT_DIR>/CLAUDE.md, AGENTS.md                                   instructions for the AI reader
+<CHAT_EXPORT_DIR>/CLAUDE.md, AGENTS.md          instructions for the AI reader
+<CHAT_EXPORT_DIR>/<account-id>/
+  00_danh-ba.md, 00_trang-thai.md               contacts / chats index, bot status
+  <yyyy-MM-dd>/00_muc-luc.md                    daily index
+  <yyyy-MM-dd>/nhom/<group>.md, rieng/<person>.md   one file per chat per day
+  <yyyy-MM-dd>/tep/                             downloaded images, files, videos, voice notes
+  _du-lieu/                                     machine data (<yyyy-MM-dd>.jsonl, *.json)
 ```
 
 `CHAT_EXPORT_DIR` defaults to `data/exports`; pointing it outside `data/` keeps the AI away from the
@@ -225,7 +229,7 @@ Zalo cookies. No LLM configuration is needed. Logged: text, your own messages (`
 and file links, stickers/voice placeholders, quoted replies, recalled messages. Dates follow
 `BOT_TIMEZONE`.
 
-Each account also gets `_trang-thai.md` (connected / disconnected / stopped / login error, refreshed
+Each account also gets `00_trang-thai.md` (connected / disconnected / stopped / login error, refreshed
 every 5 minutes while connected). On every (re)connect the bot asks Zalo for messages after the last
 logged `msgId` and backfills them, deduplicated by `msgId`. On Windows,
 `scripts\windows\cai-tu-khoi-dong.ps1` registers a Task Scheduler job that starts the bot at logon.

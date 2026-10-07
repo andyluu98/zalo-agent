@@ -235,36 +235,39 @@ khởi động có thể bỏ qua.
 #### Cấu trúc thư mục
 
 ```
-<CHAT_EXPORT_DIR>/                        mặc định data/exports
-  CLAUDE.md, AGENTS.md                    công thức tra cứu cho AI (theo ngày / nhóm / người / từ khóa)
+<CHAT_EXPORT_DIR>/                  mặc định data/exports
+  CLAUDE.md, AGENTS.md              công thức tra cứu cho AI (theo ngày / nhóm / người / từ khóa)
   <account-id>/
-    _trang-thai.md                        bot còn chạy không, mất kết nối lúc nào, lần tải bù gần nhất
-    _danh-ba.md                           MỌI cuộc trò chuyện (tên, nhóm/riêng, ID, tên file, ngày đầu-cuối,
-                                          số tin) và MỌI người (tên, ID, chat riêng không, có mặt nhóm nào)
+    00_trang-thai.md                bot còn chạy không, mất kết nối lúc nào, lần tải bù gần nhất
+    00_danh-ba.md                   MỌI cuộc trò chuyện (tên, nhóm/riêng, Thread ID, file, ngày đầu-cuối,
+                                    số tin) và MỌI người (tên, ID, chat riêng không, có mặt nhóm nào)
     2026-10-05/
-      00_muc-luc.md                       mục lục ngày: cuộc nào, bao nhiêu tin, ai nhắn, giờ đầu-cuối
-      nhom_kinh-doanh_123456789.md        chat nhóm
-      rieng_nguyen-van-a_987654321.md     chat riêng, mang tên người kia
-      tin-nhan.jsonl                      mọi tin trong ngày, 1 dòng JSON / tin (có msgId, senderId)
-      tep/                                ảnh, file, video, tin thoại đã tải về (1130_bao-gia.xlsx...)
+      00_muc-luc.md                 mục lục ngày: cuộc nào, bao nhiêu tin, ai nhắn, giờ đầu-cuối
+      nhom/kinh-doanh.md            chat nhóm, mỗi cuộc một file
+      rieng/nguyen-van-a.md         chat riêng, mang tên người kia
+      tep/                          ảnh, file, video, tin thoại đã tải về (1130_bao-gia.xlsx...)
+    _du-lieu/                       dữ liệu máy đọc, không cần mở
+      2026-10-05.jsonl              mọi tin trong ngày, 1 dòng JSON / tin (có msgId, senderId)
+      danh-ba.json, trang-thai.json, muc-luc-2026-10-05.json
 ```
 
 Tệp được tải ngay lúc nhận nên không lo link Zalo hết hạn, và Claude mở đọc được thẳng nội dung
 (Word, Excel, PDF, ảnh). Mỗi tệp tối đa `CHAT_EXPORT_MAX_FILE_MB` (mặc định 100 MB, đặt trong `.env`;
 `0` = không tải); vượt trần thì chỉ ghi link kèm lý do.
 
-Tên file của một cuộc trò chuyện **giống nhau ở mọi ngày** (ID ở cuối không đổi), nên tìm
-`rieng_nguyen-van-a_*` là ra toàn bộ lịch sử chat với người đó. Chat riêng mà bạn nhắn trước thì bot
-hỏi Zalo tên người kia để đặt tên file.
+Tên file là tên nhóm / tên người viết không dấu, nên `*/rieng/nguyen-van-a.md` là toàn bộ lịch sử
+chat với người đó qua các ngày. Hai cuộc trùng tên thì cuộc sau thêm 4 số cuối ID
+(`kinh-doanh-6789.md`). Thread ID nằm ở dòng đầu mỗi file và trong `00_danh-ba.md`, nên nhóm có đổi
+tên vẫn tra chính xác được. Chat riêng mà bạn nhắn trước thì bot hỏi Zalo tên người kia.
 
 Cách Claude tra cứu (đã ghi sẵn trong `CLAUDE.md`):
 
 | Câu hỏi | Claude làm |
 |---|---|
 | Hôm nay có gì | đọc `00_muc-luc.md` của ngày, rồi mở các file trong đó |
-| Nhóm X bàn gì tuần này | tra `_danh-ba.md` lấy ID, mở `nhom_*_<id>.md` của các ngày |
-| Người Y giao gì | bảng Người trong `_danh-ba.md`: chat riêng + các nhóm Y có mặt |
-| Tìm từ khóa | tìm trong `*/tin-nhan.jsonl` |
+| Nhóm X bàn gì tuần này | tra `00_danh-ba.md` lấy Thread ID, mở `*/nhom/` có ID đó |
+| Người Y giao gì | bảng Người trong `00_danh-ba.md`: chat riêng + các nhóm Y có mặt |
+| Tìm từ khóa | tìm trong `_du-lieu/*.jsonl` |
 
 Một file `.md` trông như sau:
 
@@ -300,12 +303,12 @@ Không bịa thông tin ngoài log; ngày nào không có thư mục thì ghi "k
 ```
 
 Tác vụ chỉ chạy khi máy bật và cả zalo-agent lẫn Claude Desktop đang mở. File `CLAUDE.md` dặn AI
-đọc `_trang-thai.md` trước: bot tắt, mất kết nối hay lỗi đăng nhập thì báo cáo có cảnh báo ngay
+đọc `00_trang-thai.md` trước: bot tắt, mất kết nối hay lỗi đăng nhập thì báo cáo có cảnh báo ngay
 đầu, không lặng lẽ báo "hôm nay ít việc".
 
 #### Trạng thái và tải bù tin
 
-- **Sổ trạng thái** `_trang-thai.md`: Đang kết nối / Mất kết nối / Đã dừng / Lỗi đăng nhập, kèm giờ.
+- **Sổ trạng thái** `00_trang-thai.md`: Đang kết nối / Mất kết nối / Đã dừng / Lỗi đăng nhập, kèm giờ.
   Khi đang kết nối, bot ghi lại file này mỗi 5 phút; "Cập nhật lúc" cũ hơn 15 phút nghĩa là bot
   đã tắt hoặc treo.
 - **Tải bù tin nhắn bị lỡ**: mỗi lần kết nối (khởi động hoặc nối lại sau khi rớt mạng), bot xin Zalo
@@ -328,7 +331,7 @@ dừng hẳn thì tắt tiến trình node đang giữ cổng 3900.
 #### Giới hạn cần biết
 
 - **Tải bù phụ thuộc Zalo**: chưa đo được Zalo trả lùi bao xa hay tối đa bao nhiêu tin một lần. Bot
-  tắt lâu (nhiều ngày) hoặc nhóm rất đông có thể vẫn thiếu tin; xem số tin tải bù trong `_trang-thai.md`.
+  tắt lâu (nhiều ngày) hoặc nhóm rất đông có thể vẫn thiếu tin; xem số tin tải bù trong `00_trang-thai.md`.
   Tin bị thu hồi trong lúc bot tắt không tải bù được.
 - **Không mở Zalo Web của chính nick đó trên trình duyệt**: Zalo chỉ cho một phiên web, bot và tab
   trình duyệt sẽ đá nhau liên tục. Zalo trên điện thoại dùng bình thường.

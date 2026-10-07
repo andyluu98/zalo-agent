@@ -20,11 +20,11 @@ describe("SoTrangThai", () => {
     const goc = taoThuMuc();
     const so = new SoTrangThai(goc, () => "Asia/Ho_Chi_Minh", () => new Date("2026-10-06T02:00:00Z"));
     so.cap("acc", { tinhTrang: "dang_ket_noi", ketNoiLuc: "2026-10-06T01:55:00Z" });
-    const md = fs.readFileSync(path.join(goc, "acc", "_trang-thai.md"), "utf8");
+    const md = fs.readFileSync(path.join(goc, "acc", "00_trang-thai.md"), "utf8");
     assert.match(md, /Tình trạng: \*\*Đang kết nối\*\*/);
     assert.match(md, /Cập nhật lúc: 2026-10-06 09:00/);
     assert.match(md, /Kết nối gần nhất: 2026-10-06 08:55/);
-    const json = JSON.parse(fs.readFileSync(path.join(goc, "acc", "_trang-thai.json"), "utf8"));
+    const json = JSON.parse(fs.readFileSync(path.join(goc, "acc", "_du-lieu", "trang-thai.json"), "utf8"));
     assert.equal(json.tinhTrang, "dang_ket_noi");
   });
 
@@ -45,9 +45,18 @@ describe("SoTrangThai", () => {
 
   it("chưa có msgId cuối thì mọi tin đều mới; file hỏng không làm sập", () => {
     const goc = taoThuMuc();
-    fs.mkdirSync(path.join(goc, "acc"));
-    fs.writeFileSync(path.join(goc, "acc", "_trang-thai.json"), "{hỏng");
+    fs.mkdirSync(path.join(goc, "acc", "_du-lieu"), { recursive: true });
+    fs.writeFileSync(path.join(goc, "acc", "_du-lieu", "trang-thai.json"), "{hỏng");
     const so = new SoTrangThai(goc, () => "UTC");
     assert.equal(so.laTinMoi("acc", "user", "1"), true);
+  });
+
+  it("nâng cấp: đọc msgId cuối từ file bố cục cũ (_trang-thai.json) khi bản mới chưa có", () => {
+    const goc = taoThuMuc();
+    fs.mkdirSync(path.join(goc, "acc"));
+    fs.writeFileSync(path.join(goc, "acc", "_trang-thai.json"), JSON.stringify({ msgIdCuoi: { user: "500" } }));
+    const so = new SoTrangThai(goc, () => "UTC");
+    assert.equal(so.laTinMoi("acc", "user", "500"), false);
+    assert.equal(so.laTinMoi("acc", "user", "501"), true);
   });
 });

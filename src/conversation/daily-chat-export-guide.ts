@@ -3,7 +3,7 @@
  * log và lọc việc. Đổi nội dung thì tăng số trong DAU_HIEU_HUONG_DAN: bản cũ
  * trên máy người dùng sẽ được chuyển vào `_backup/` và thay bằng bản mới.
  */
-export const DAU_HIEU_HUONG_DAN = "<!-- zalo-agent-huong-dan v3 -->";
+export const DAU_HIEU_HUONG_DAN = "<!-- zalo-agent-huong-dan v4 -->";
 
 export const HUONG_DAN_AI = `${DAU_HIEU_HUONG_DAN}
 # Hướng dẫn tra cứu log Zalo
@@ -16,27 +16,31 @@ lúc nhận. Giờ theo múi giờ của bot (mặc định Asia/Ho_Chi_Minh). M
 
 \`\`\`
 <accountId>/
-  _trang-thai.md          bot còn chạy không, mất kết nối lúc nào, lần tải bù gần nhất
-  _danh-ba.md             MỌI cuộc trò chuyện (tên, nhóm/riêng, ID, tên file, ngày đầu-cuối, số tin)
+  00_trang-thai.md        bot còn chạy không, mất kết nối lúc nào, lần tải bù gần nhất
+  00_danh-ba.md           MỌI cuộc trò chuyện (tên, nhóm/riêng, Thread ID, file, ngày đầu-cuối, số tin)
                           và MỌI người (tên, user ID, có chat riêng không, có mặt trong nhóm nào)
   <yyyy-MM-dd>/
     00_muc-luc.md         mục lục ngày: cuộc trò chuyện nào, bao nhiêu tin, ai nhắn, giờ đầu-cuối
-    nhom_<ten-nhom>_<id>.md     chat nhóm, mỗi cuộc một file
-    rieng_<ten-nguoi>_<id>.md   chat riêng, mỗi cuộc một file
-    tin-nhan.jsonl        mọi tin trong ngày, một dòng JSON (có msgId, senderId, threadId)
+    nhom/<ten-nhom>.md    chat nhóm, mỗi cuộc một file
+    rieng/<ten-nguoi>.md  chat riêng, mỗi cuộc một file
     tep/                  ảnh, file, video, tin thoại đã tải về (<HHmm>_<ten>.<duoi>)
+  _du-lieu/               dữ liệu máy đọc
+    <yyyy-MM-dd>.jsonl    mọi tin trong ngày, một dòng JSON (có msgId, senderId, threadId)
+    danh-ba.json, trang-thai.json, muc-luc-<yyyy-MM-dd>.json
 \`\`\`
 
 Mỗi tin một dòng \`- HH:mm **Người gửi**: nội dung\`. "Tôi (...)" là chủ tài khoản. Dòng
-\`> Trả lời ...\` là tin được trích dẫn; "đã thu hồi" là tin bị rút lại. Tên file của một cuộc
-trò chuyện GIỐNG NHAU ở mọi thư mục ngày (ID ở cuối không đổi), nên tìm \`*_<id>.md\` là ra mọi ngày.
-Tin tải bù (lỡ lúc bot tắt) nối vào cuối file nên có thể lệch thứ tự giờ.
-Dòng \`- Đã lưu (file): [tep/...](tep/...)\` trỏ tới bản tệp trên máy: mở được trực tiếp (Word,
-Excel, PDF, ảnh) khi cần nội dung, ví dụ đọc báo giá hay hợp đồng được gửi trong chat.
+\`> Trả lời ...\` là tin được trích dẫn; "đã thu hồi" là tin bị rút lại. Dòng \`- Đã lưu (file): ...\`
+trỏ tới bản tệp trên máy (\`<ngày>/tep/\`): mở được trực tiếp (Word, Excel, PDF, ảnh) khi cần nội dung.
+
+Tên file là tên nhóm / tên người viết không dấu (vd \`nhom/kinh-doanh.md\`, \`rieng/vu-van-hai.md\`).
+Hai cuộc trùng tên thì thêm 4 số cuối ID (\`kinh-doanh-6789.md\`). Nhóm đổi tên thì những ngày sau
+mang tên mới: tra CHÍNH XÁC theo Thread ID (dòng đầu mỗi file có \`- Thread ID: ...\`, cột Thread ID
+trong \`00_danh-ba.md\`). Tin tải bù (lỡ lúc bot tắt) nối vào cuối file nên có thể lệch thứ tự giờ.
 
 ## Luôn làm trước
 
-Đọc \`<accountId>/_trang-thai.md\`. Nếu tình trạng không phải "Đang kết nối", hoặc "Cập nhật lúc"
+Đọc \`<accountId>/00_trang-thai.md\`. Nếu tình trạng không phải "Đang kết nối", hoặc "Cập nhật lúc"
 cũ hơn 15 phút so với bây giờ: ghi cảnh báo ngay đầu câu trả lời (bot tắt / mất kết nối từ mốc
 nào, log từ đó có thể thiếu). "Lỗi đăng nhập" nghĩa là phải quét QR lại.
 
@@ -45,13 +49,13 @@ nào, log từ đó có thể thiếu). "Lỗi đăng nhập" nghĩa là phải 
 | Câu hỏi | Cách làm |
 |---|---|
 | Hôm nay / ngày X có gì | Đọc \`<ngày>/00_muc-luc.md\`, rồi mở các file trong mục lục |
-| Nhóm X bàn gì (khoảng ngày) | Tra \`_danh-ba.md\` lấy ID của nhóm, mở \`*/nhom_*_<id>.md\` trong các ngày cần |
-| Người Y nói / giao gì | Tra bảng Người trong \`_danh-ba.md\`: chat riêng (\`rieng_*_<id>.md\`) + các nhóm Y có mặt; tìm dòng \`**Y**\` |
-| Tìm theo từ khóa | Tìm trong \`*/tin-nhan.jsonl\` (nhanh, có threadId để mở đúng file .md) |
+| Nhóm X bàn gì (khoảng ngày) | Tra \`00_danh-ba.md\` lấy Thread ID; tìm \`Thread ID: <id>\` trong \`*/nhom/*.md\` của các ngày cần |
+| Người Y nói / giao gì | Bảng Người trong \`00_danh-ba.md\`: chat riêng (\`*/rieng/\`) + các nhóm Y có mặt; tìm dòng \`**Y**\` |
+| Tìm theo từ khóa | Tìm trong \`_du-lieu/*.jsonl\` (nhanh, có threadId để mở đúng file .md) |
 | File / ảnh ai gửi | Tìm dòng \`Đã lưu\` trong file chat, mở tệp trong \`<ngày>/tep/\` |
-| Tên gần đúng / không dấu | Tên file là bản không dấu (vd \`vu-van-hai\`); so cả có dấu lẫn không dấu |
+| Tên gần đúng / không dấu | Tên file là bản không dấu; so cả có dấu lẫn không dấu |
 
-Mọi câu trả lời phải ghi nguồn: tên file + giờ của tin. Không bịa thông tin không có trong log.
+Mọi câu trả lời phải ghi nguồn: đường dẫn file + giờ của tin. Không bịa thông tin không có trong log.
 
 ## Lọc việc (báo cáo ngày)
 
@@ -65,5 +69,5 @@ Mẫu kết quả:
 
 | # | Việc | Người giao | Nhóm / chat | Hạn | Trạng thái | Nguồn |
 |---|---|---|---|---|---|---|
-| 1 | Gửi báo giá cho khách A | Anh B | Nhóm Kinh Doanh | 17h hôm nay | Chưa làm | nhom_kinh-doanh_123.md 09:15 |
+| 1 | Gửi báo giá cho khách A | Anh B | Nhóm Kinh Doanh | 17h hôm nay | Chưa làm | 2026-10-07/nhom/kinh-doanh.md 09:15 |
 `;

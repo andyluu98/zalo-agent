@@ -48,6 +48,11 @@ Bản `0.x` nghĩa là API và cấu hình còn có thể đổi giữa các b�
   xóa nhãn. Opt-in theo tài khoản: điền "Zalo ID nhận báo chuyển người thật" (cột
   `accounts.handoff_notify_user_id`) thì tool mới được cấp. Cột mới `threads.handoff_at`,
   `threads.handoff_reason`.
+- **Bố cục thư mục log gọn lại**: thư mục ngày chỉ còn `00_muc-luc.md`, `nhom/`, `rieng/`, `tep/`;
+  tên file ngắn theo tên nhóm / người (trùng tên thì thêm 4 số cuối ID); dữ liệu máy đọc gom vào
+  `<account>/_du-lieu/`; danh bạ / trạng thái đổi tên `00_danh-ba.md` / `00_trang-thai.md`. Mọi
+  đường dẫn nằm ở `src/conversation/log-paths.ts`. Vẫn đọc được trạng thái / danh bạ bố cục cũ khi
+  nâng cấp; `scripts/dung-lai-log-ngay.ts` chuyển log cũ sang bố cục mới (bản cũ vào `_backup/`).
 - **Script tự chạy khi đăng nhập Windows** (`scripts/windows/cai-tu-khoi-dong.ps1`, gỡ bằng
   `go-tu-khoi-dong.ps1`): Task Scheduler, chạy ẩn, tự khởi động lại khi chết.
 

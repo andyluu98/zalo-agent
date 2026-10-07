@@ -1,12 +1,13 @@
 import fs from "node:fs";
-import path from "node:path";
 import { DateTime, IANAZone } from "luxon";
+import { DuongDanLog } from "./log-paths.js";
 
 /**
  * Sổ trạng thái của account chỉ đọc, ghi cạnh log tin nhắn:
  *
- *   <thuMucGoc>/<accountId>/_trang-thai.json   máy đọc + nguồn sự thật khi khởi động lại
- *   <thuMucGoc>/<accountId>/_trang-thai.md     người / AI đọc
+ *   <acc>/_du-lieu/trang-thai.json   máy đọc + nguồn sự thật khi khởi động lại
+ *   <acc>/00_trang-thai.md           người / AI đọc
+ *   (bản cũ `<acc>/_trang-thai.json` vẫn được đọc khi bản mới chưa có)
  *
  * Hai việc:
  *   1. Cho AI tổng hợp báo cáo biết log có đáng tin không: bot đang kết nối, mất
@@ -39,22 +40,28 @@ export const NHIP_SONG_PHUT = 5;
 
 export class SoTrangThai {
   private readonly bo = new Map<string, TrangThaiLuu>();
+  private readonly duongDan: DuongDanLog;
 
   constructor(
-    private readonly thuMucGoc: string,
+    thuMucGoc: string,
     private readonly muiGio: () => string,
     private readonly bayGio: () => Date = () => new Date(),
-  ) {}
+  ) {
+    this.duongDan = new DuongDanLog(thuMucGoc);
+  }
 
   doc(accountId: string): TrangThaiLuu {
     const daCo = this.bo.get(accountId);
     if (daCo) return daCo;
     let tt: TrangThaiLuu = { accountId, tinhTrang: "da_dung", capNhatLuc: this.bayGio().toISOString(), msgIdCuoi: {} };
-    try {
-      const raw = JSON.parse(fs.readFileSync(this.fileJson(accountId), "utf8")) as Partial<TrangThaiLuu>;
-      tt = { ...tt, ...raw, accountId, msgIdCuoi: { ...(raw.msgIdCuoi ?? {}) } };
-    } catch {
-      /* chưa có file hoặc hỏng - bắt đầu trống */
+    for (const p of [this.duongDan.trangThaiJson(accountId), this.duongDan.cuTrangThaiJson(accountId)]) {
+      try {
+        const raw = JSON.parse(fs.readFileSync(p, "utf8")) as Partial<TrangThaiLuu>;
+        tt = { ...tt, ...raw, accountId, msgIdCuoi: { ...(raw.msgIdCuoi ?? {}) } };
+        break;
+      } catch {
+        /* chưa có file hoặc hỏng - thử chỗ kế tiếp */
+      }
     }
     this.bo.set(accountId, tt);
     return tt;
@@ -81,15 +88,10 @@ export class SoTrangThai {
     this.cap(accountId, { msgIdCuoi, tinGanNhatLuc });
   }
 
-  private fileJson(accountId: string): string {
-    return path.join(this.thuMucGoc, sachTen(accountId), "_trang-thai.json");
-  }
-
   private ghi(tt: TrangThaiLuu): void {
-    const dir = path.join(this.thuMucGoc, sachTen(tt.accountId));
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(this.fileJson(tt.accountId), `${JSON.stringify(tt, null, 2)}\n`, "utf8");
-    fs.writeFileSync(path.join(dir, "_trang-thai.md"), this.veMd(tt), "utf8");
+    fs.mkdirSync(this.duongDan.duLieu(tt.accountId), { recursive: true });
+    fs.writeFileSync(this.duongDan.trangThaiJson(tt.accountId), `${JSON.stringify(tt, null, 2)}\n`, "utf8");
+    fs.writeFileSync(this.duongDan.trangThaiMd(tt.accountId), this.veMd(tt), "utf8");
   }
 
   private gio(iso: string | undefined): string {
@@ -132,8 +134,4 @@ const TEN_TINH_TRANG: Record<TinhTrang, string> = {
 export function soSanhMsgId(a: string, b: string): number {
   if (a.length !== b.length) return a.length - b.length;
   return a < b ? -1 : a > b ? 1 : 0;
-}
-
-function sachTen(s: string): string {
-  return s.replace(/[^A-Za-z0-9_.-]/g, "_") || "_";
 }

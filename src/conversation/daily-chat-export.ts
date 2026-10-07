@@ -3,29 +3,18 @@ import path from "node:path";
 import { DateTime, IANAZone } from "luxon";
 import { DanhBaLog } from "./danh-ba-log.js";
 import { DAU_HIEU_HUONG_DAN, HUONG_DAN_AI } from "./daily-chat-export-guide.js";
-import { catNgan, motDong, sachTen, tenFileThread } from "./log-text-utils.js";
+import { DuongDanLog } from "./log-paths.js";
+import { catNgan, chonTenFileThread, motDong } from "./log-text-utils.js";
 import { MucLucNgay } from "./muc-luc-ngay.js";
 
 /**
  * Ghi tin nhắn ra FILE theo ngày cho chế độ chỉ đọc, để một AI khác (Claude
- * Code, Antigravity...) mở thư mục ra đọc và lọc việc cần làm.
- *
- * Cấu trúc:
- *
- *   <thuMucGoc>/
- *     CLAUDE.md, AGENTS.md                hướng dẫn tra cứu cho AI
- *     <accountId>/
- *       _danh-ba.md                       mọi cuộc trò chuyện + mọi người (danh-ba-log.ts)
- *       <yyyy-MM-dd>/
- *         00_muc-luc.md                   mục lục của ngày (muc-luc-ngay.ts)
- *         nhom_<ten>_<id>.md / rieng_<ten>_<id>.md   mỗi cuộc trò chuyện một file
- *         tin-nhan.jsonl                  máy đọc: mọi tin trong ngày, một dòng một tin
+ * Code, Antigravity...) mở thư mục ra đọc và lọc việc cần làm. Bố cục thư mục:
+ * xem `log-paths.ts` (chỗ duy nhất biết đường dẫn).
  *
  * Ghi NỐI THÊM ngay khi tin đến (không gom cuối ngày): AI đọc lúc nào cũng có
  * dữ liệu mới nhất, và process chết giữa ngày không mất những gì đã ghi.
- *
- * Ngày tính theo múi giờ bot (BOT_TIMEZONE), không theo UTC: tin 6h sáng giờ
- * VN phải nằm ở file hôm nay, không phải hôm qua.
+ * Ngày tính theo múi giờ bot (BOT_TIMEZONE), không theo UTC.
  *
  * Module không import env/DB để test chạy trên thư mục tạm; caller tự truyền
  * thư mục gốc + hàm đọc múi giờ.
@@ -52,7 +41,7 @@ export type DongLogTin = {
   dinhKem?: { ten: string; url: string };
   trichDan?: { nguoiGui: string; noiDung: string };
   anh: string[];
-  /** Tệp đã tải về `<ngày>/tep/` (đường dẫn tương đối) hoặc lỗi tải - xem read-only-attachments.ts */
+  /** Tệp đã tải về `<ngày>/tep/` (đường dẫn tương đối với thư mục ngày) hoặc lỗi tải */
   tepDaLuu?: { loai: string; ten: string; duongDan?: string; loi?: string }[];
 };
 
@@ -72,25 +61,26 @@ export type SuKienThuHoi = {
 const SO_TIN_NHO_DE_TRA_THU_HOI = 5_000;
 
 export class BoGhiLogNgay {
-  /** `<ngày>|<account>|<thread>` -> đường dẫn file .md, để cả ngày dùng đúng 1 file dù tên nhóm đổi */
-  private readonly fileTheoThread = new Map<string, string>();
   /** msgId -> giờ + trích đoạn, để dòng "đã thu hồi" nói được là tin nào */
   private readonly tinGanDay = new Map<string, { gio: string; trich: string }>();
+  private readonly duongDan: DuongDanLog;
   private readonly danhBa: DanhBaLog;
-  private readonly mucLuc = new MucLucNgay();
+  private readonly mucLuc: MucLucNgay;
 
   constructor(
     private readonly thuMucGoc: string,
     private readonly muiGio: () => string,
     private readonly bayGio: () => Date = () => new Date(),
   ) {
-    this.danhBa = new DanhBaLog(thuMucGoc);
+    this.duongDan = new DuongDanLog(thuMucGoc);
+    this.danhBa = new DanhBaLog(this.duongDan);
+    this.mucLuc = new MucLucNgay(this.duongDan);
   }
 
   /** Thư mục ngày + giờ hiển thị của một tin - để tải tệp vào đúng chỗ TRƯỚC khi ghi dòng log */
   viTriNgay(accountId: string, sentAt: string): { thuMucNgay: string; ngay: string; gio: string } {
     const { ngay, gio } = this.tachNgayGio(sentAt);
-    return { thuMucNgay: path.join(this.thuMucGoc, sachTen(accountId), ngay), ngay, gio };
+    return { thuMucNgay: this.duongDan.ngay(accountId, ngay), ngay, gio };
   }
 
   /** Tên thread đã nhớ trong danh bạ (rỗng nếu chưa gặp) */
@@ -119,9 +109,6 @@ export class BoGhiLogNgay {
 
   ghiTin(d: DongLogTin): void {
     const { ngay, gio } = this.tachNgayGio(d.sentAt);
-    const thuMucNgay = path.join(this.thuMucGoc, sachTen(d.accountId), ngay);
-    fs.mkdirSync(thuMucNgay, { recursive: true });
-
     const nguoiGui = d.laToi ? `Tôi (${d.senderName})` : d.senderName;
     const dong: string[] = [];
     const [dau = "", ...sau] = d.noiDung.split(/\r?\n/);
@@ -136,20 +123,16 @@ export class BoGhiLogNgay {
     const anhDaLuu = (d.tepDaLuu ?? []).filter((t) => t.loai === "anh" && t.duongDan);
     if (anhDaLuu.length === 0) for (const url of d.anh) dong.push(`  - Ảnh: ${url}`);
     for (const t of d.tepDaLuu ?? []) {
-      if (t.duongDan) dong.push(`  - Đã lưu (${t.loai}): [${t.duongDan}](${t.duongDan})`);
+      // File chat nằm trong nhom/ hoặc rieng/, tệp nằm ở <ngày>/tep/ -> link đi lên một cấp
+      if (t.duongDan) dong.push(`  - Đã lưu (${t.loai}): [${t.duongDan}](../${t.duongDan})`);
       else dong.push(`  - Không tải được ${t.loai} "${motDong(t.ten)}": ${motDong(t.loi ?? "")}`);
     }
 
-    const fileMd = this.fileMd(thuMucNgay, ngay, d);
-    fs.appendFileSync(fileMd, `${dong.join("\n")}\n`, "utf8");
-    fs.appendFileSync(
-      path.join(thuMucNgay, "tin-nhan.jsonl"),
-      `${JSON.stringify({ loai: "tin", ngay, gio, ...d })}\n`,
-      "utf8",
-    );
-
-    this.danhBa.ghiNhan({ ...d, ngay });
-    this.mucLuc.ghiNhan(thuMucNgay, ngay, { ...d, file: fileMd, gio, nguoiGui });
+    const file = this.fileMd(ngay, d);
+    fs.appendFileSync(path.join(this.duongDan.ngay(d.accountId, ngay), file), `${dong.join("\n")}\n`, "utf8");
+    this.ghiJsonl(d.accountId, ngay, { loai: "tin", ngay, gio, ...d });
+    this.danhBa.ghiNhan({ ...d, file, ngay });
+    this.mucLuc.ghiNhan(d.accountId, ngay, { ...d, gio, nguoiGui });
 
     if (d.msgId) {
       this.tinGanDay.set(d.msgId, { gio, trich: catNgan(d.noiDung, 80) });
@@ -162,22 +145,21 @@ export class BoGhiLogNgay {
 
   ghiThuHoi(e: SuKienThuHoi): void {
     const { ngay, gio } = this.tachNgayGio(e.sentAt);
-    const thuMucNgay = path.join(this.thuMucGoc, sachTen(e.accountId), ngay);
-    fs.mkdirSync(thuMucNgay, { recursive: true });
-
     const goc = this.tinGanDay.get(e.msgIdGoc);
     const nguoiGui = e.laToi ? `Tôi (${e.senderName})` : e.senderName;
     const chiTiet = goc ? ` (tin lúc ${goc.gio}: "${goc.trich}")` : "";
+    const file = this.fileMd(ngay, e);
     fs.appendFileSync(
-      this.fileMd(thuMucNgay, ngay, e),
+      path.join(this.duongDan.ngay(e.accountId, ngay), file),
       `- ${gio} **${motDong(nguoiGui)}** đã thu hồi một tin${chiTiet}\n`,
       "utf8",
     );
-    fs.appendFileSync(
-      path.join(thuMucNgay, "tin-nhan.jsonl"),
-      `${JSON.stringify({ loai: "thu_hoi", ngay, gio, ...e })}\n`,
-      "utf8",
-    );
+    this.ghiJsonl(e.accountId, ngay, { loai: "thu_hoi", ngay, gio, ...e });
+  }
+
+  private ghiJsonl(accountId: string, ngay: string, ban: Record<string, unknown>): void {
+    fs.mkdirSync(this.duongDan.duLieu(accountId), { recursive: true });
+    fs.appendFileSync(this.duongDan.jsonl(accountId, ngay), `${JSON.stringify(ban)}\n`, "utf8");
   }
 
   private tachNgayGio(sentAt: string): { ngay: string; gio: string } {
@@ -189,37 +171,24 @@ export class BoGhiLogNgay {
   }
 
   /**
-   * File .md của thread trong ngày. Tên file chốt ở lần ghi ĐẦU TIÊN trong ngày
-   * và tìm lại theo tiền tố `nhom_`/`rieng_` + đuôi `_<threadId>.md` khi process
-   * khởi động lại, nên tên nhóm đổi giữa ngày cũng không tách thành hai file.
-   * (File kiểu cũ không tiền tố bị bỏ qua: tin mới sang file đặt tên mới.)
+   * File .md (tương đối với thư mục ngày) của cuộc trò chuyện. Chốt ở lần ghi
+   * ĐẦU TIÊN trong ngày và nhớ trong mục lục, nên khởi động lại hay nhóm đổi tên
+   * giữa ngày vẫn ghi tiếp đúng file đó.
    */
-  private fileMd(
-    thuMucNgay: string,
-    ngay: string,
-    t: { accountId: string; threadId: string; tenThread: string; laNhom: boolean },
-  ): string {
-    const khoa = `${ngay}|${t.accountId}|${t.threadId}`;
-    const daBiet = this.fileTheoThread.get(khoa);
-    if (daBiet) return daBiet;
-
-    const duoi = `_${sachTen(t.threadId)}.md`;
-    const tienTo = t.laNhom ? "nhom_" : "rieng_";
-    const coSan = fs.readdirSync(thuMucNgay).find((f) => f.startsWith(tienTo) && f.endsWith(duoi));
-    let p: string;
-    if (coSan) {
-      p = path.join(thuMucNgay, coSan);
-    } else {
-      p = path.join(thuMucNgay, tenFileThread(t));
-      const ten = motDong(t.tenThread) || t.threadId;
-      fs.writeFileSync(
-        p,
-        `# ${ten} (${t.laNhom ? "Nhóm" : "Chat riêng"}) - ${ngay}\n\n` +
-          `- Tài khoản: ${t.accountId}\n- Thread ID: ${t.threadId}\n\n`,
-        "utf8",
-      );
-    }
-    this.fileTheoThread.set(khoa, p);
-    return p;
+  private fileMd(ngay: string, t: { accountId: string; threadId: string; tenThread: string; laNhom: boolean }): string {
+    const daChot = this.mucLuc.fileCua(t.accountId, ngay, t.threadId);
+    if (daChot) return daChot;
+    const thuMucNgay = this.duongDan.ngay(t.accountId, ngay);
+    const file = chonTenFileThread(thuMucNgay, t);
+    fs.mkdirSync(path.dirname(path.join(thuMucNgay, file)), { recursive: true });
+    const ten = motDong(t.tenThread) || t.threadId;
+    fs.writeFileSync(
+      path.join(thuMucNgay, file),
+      `# ${ten} (${t.laNhom ? "Nhóm" : "Chat riêng"}) - ${ngay}\n\n` +
+        `- Tài khoản: ${t.accountId}\n- Thread ID: ${t.threadId}\n\n`,
+      "utf8",
+    );
+    this.mucLuc.chotFile(t.accountId, ngay, { ...t, file });
+    return file;
   }
 }

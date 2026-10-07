@@ -1,16 +1,17 @@
 /**
- * Dựng lại log chỉ đọc của MỘT ngày theo định dạng hiện tại, từ `tin-nhan.jsonl`
- * của chính ngày đó (nguồn đủ mọi tin). Dùng khi đổi định dạng file log.
+ * Dựng lại log chỉ đọc của MỘT ngày theo bố cục hiện tại (xem src/conversation/log-paths.ts),
+ * từ jsonl của ngày đó - nguồn đủ mọi tin. Dùng khi đổi định dạng / bố cục log. Đọc được cả
+ * jsonl bố cục cũ (`<ngày>/tin-nhan.jsonl`) lẫn mới (`_du-lieu/<ngày>.jsonl`).
  *
  *   pnpm tsx scripts/dung-lai-log-ngay.ts <CHAT_EXPORT_DIR> <accountId> <yyyy-MM-dd> [muiGio] [--tai-tep]
  *
- * `--tai-tep`: tải bù ảnh / file / video / tin thoại của những tin CHƯA có bản trên máy
- * (tin ghi trước khi có tính năng tải tệp) vào `<ngày>/tep/`, nếu link Zalo còn sống.
- * Thư mục `tep/` luôn được GIỮ NGUYÊN tại chỗ, không chuyển vào backup.
+ * `--tai-tep`: tải bù ảnh / file / video / tin thoại của những tin CHƯA có bản trên máy vào
+ * `<ngày>/tep/`, nếu link Zalo còn sống.
  *
- * KHÔNG xóa gì: mọi file cũ của ngày đó + danh bạ cũ được CHUYỂN vào
+ * KHÔNG xóa gì: file cũ của ngày đó + danh bạ / trạng thái bố cục cũ được CHUYỂN vào
  * `<CHAT_EXPORT_DIR>/_backup/<accountId>_<ngày>_truoc-dung-lai_<yyMMdd-HHmm>/`.
- * Danh bạ được dựng lại từ jsonl của TẤT CẢ các ngày có trong thư mục account.
+ * Giữ NGUYÊN tại chỗ: `<ngày>/tep/` và `_du-lieu/trang-thai.json` (msgId cuối cho tải bù);
+ * trạng thái bố cục cũ được chép sang `_du-lieu/` nếu bản mới chưa có.
  * Phải TẮT bot trước khi chạy, nếu không bot có thể ghi chen vào giữa.
  */
 import fs from "node:fs";
@@ -18,51 +19,65 @@ import os from "node:os";
 import path from "node:path";
 import { DateTime } from "luxon";
 import { BoGhiLogNgay, type DongLogTin, type SuKienThuHoi } from "../src/conversation/daily-chat-export.js";
+import { DuongDanLog } from "../src/conversation/log-paths.js";
 import { taiTep, tepCanTaiTuDong } from "../src/zalo/read-only-attachments.js";
 
 type Dong = { loai: "tin" | "thu_hoi"; sentAt: string } & Record<string, unknown>;
 
 const coTaiTep = process.argv.includes("--tai-tep");
 const [goc, accountId, ngay, muiGio = "Asia/Ho_Chi_Minh"] = process.argv.slice(2).filter((a) => !a.startsWith("--"));
-if (!goc || !accountId || !/^\d{4}-\d{2}-\d{2}$/.test(ngay ?? "")) {
-  console.error("Cách dùng: tsx scripts/dung-lai-log-ngay.ts <CHAT_EXPORT_DIR> <accountId> <yyyy-MM-dd> [muiGio]");
+if (!goc || !accountId || !ngay || !/^\d{4}-\d{2}-\d{2}$/.test(ngay)) {
+  console.error("Cách dùng: tsx scripts/dung-lai-log-ngay.ts <CHAT_EXPORT_DIR> <accountId> <yyyy-MM-dd> [muiGio] [--tai-tep]");
   process.exit(1);
 }
-const thuMucAcc = path.join(goc, accountId);
-const thuMucNgay = path.join(thuMucAcc, ngay!);
-if (!fs.existsSync(path.join(thuMucNgay, "tin-nhan.jsonl"))) {
-  console.error(`Không có ${path.join(thuMucNgay, "tin-nhan.jsonl")}`);
-  process.exit(1);
-}
+const dd = new DuongDanLog(goc);
+const thuMucAcc = dd.acc(accountId);
+const thuMucNgay = dd.ngay(accountId, ngay);
+const jsonlCu = (n: string): string => path.join(dd.ngay(accountId, n), "tin-nhan.jsonl");
 
 const docJsonl = (f: string): Dong[] =>
-  fs
-    .readFileSync(f, "utf8")
-    .split(/\r?\n/)
-    .filter((l) => l.trim())
-    .map((l) => JSON.parse(l) as Dong);
+  fs.existsSync(f)
+    ? fs
+        .readFileSync(f, "utf8")
+        .split(/\r?\n/)
+        .filter((l) => l.trim())
+        .map((l) => JSON.parse(l) as Dong)
+    : [];
 
-// Mọi ngày của account: danh bạ phải đếm đủ, không chỉ ngày đang dựng
-const cacNgay = fs
-  .readdirSync(thuMucAcc)
-  .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && fs.existsSync(path.join(thuMucAcc, d, "tin-nhan.jsonl")))
-  .sort();
-const tatCa = cacNgay.flatMap((d) => docJsonl(path.join(thuMucAcc, d, "tin-nhan.jsonl")));
-
-// Tên tốt nhất cho mỗi thread: tên KHÁC RỖNG gặp sau cùng (bản cũ có thể ghi rỗng cho chat riêng)
-const tenTot = new Map<string, string>();
-for (const d of tatCa) {
-  const ten = String(d.tenThread ?? "");
-  if (ten) tenTot.set(String(d.threadId), ten);
+// Mọi ngày có jsonl (bố cục cũ hoặc mới): danh bạ phải đếm đủ, không chỉ ngày đang dựng
+const cacNgay = new Set<string>();
+for (const d of fs.readdirSync(thuMucAcc)) if (/^\d{4}-\d{2}-\d{2}$/.test(d) && fs.existsSync(jsonlCu(d))) cacNgay.add(d);
+if (fs.existsSync(dd.duLieu(accountId))) {
+  for (const f of fs.readdirSync(dd.duLieu(accountId))) {
+    const m = /^(\d{4}-\d{2}-\d{2})\.jsonl$/.exec(f);
+    if (m) cacNgay.add(m[1]!);
+  }
+}
+if (!cacNgay.has(ngay)) {
+  console.error(`Không có jsonl nào của ngày ${ngay}`);
+  process.exit(1);
 }
 
-// Dựng vào thư mục tạm trước, xong mới đổi chỗ: hỏng giữa chừng thì dữ liệu thật còn nguyên
-const tam = fs.mkdtempSync(path.join(os.tmpdir(), "dung-lai-log-"));
-const bo = new BoGhiLogNgay(tam, () => muiGio);
+// Gộp cũ + mới, bỏ trùng (bot có thể đã ghi cùng tin vào cả hai trước khi chuyển bố cục)
+const daThay = new Set<string>();
+const tatCa: Dong[] = [];
+for (const n of [...cacNgay].sort()) {
+  for (const d of [...docJsonl(jsonlCu(n)), ...docJsonl(dd.jsonl(accountId, n))]) {
+    const khoa = `${d.loai}|${String(d.msgId ?? d.msgIdGoc ?? "")}|${d.sentAt}|${String(d.threadId)}`;
+    if (daThay.has(khoa)) continue;
+    daThay.add(khoa);
+    tatCa.push(d);
+  }
+}
+
+// Tên tốt nhất cho mỗi thread: tên KHÁC RỖNG gặp sau cùng
+const tenTot = new Map<string, string>();
+for (const d of tatCa) if (String(d.tenThread ?? "")) tenTot.set(String(d.threadId), String(d.tenThread));
+
 const theoGio = [...tatCa].sort((a, b) => a.sentAt.localeCompare(b.sentAt));
-let soTaiBu = 0;
-let soLoi = 0;
 if (coTaiTep) {
+  let ok = 0;
+  let loi = 0;
   for (const d of theoGio) {
     if (d.loai !== "tin" || d.ngay !== ngay || (Array.isArray(d.tepDaLuu) && d.tepDaLuu.length > 0)) continue;
     const ds = tepCanTaiTuDong({
@@ -74,36 +89,47 @@ if (coTaiTep) {
     if (ds.length === 0) continue;
     const kq = await taiTep(thuMucNgay, String(d.gio ?? "0000"), ds, { maxBytes: 100 * 1024 * 1024 });
     d.tepDaLuu = kq;
-    soTaiBu += kq.filter((t) => t.duongDan).length;
-    soLoi += kq.filter((t) => t.loi).length;
+    ok += kq.filter((t) => t.duongDan).length;
+    loi += kq.filter((t) => t.loi).length;
   }
-  console.log(`Tải bù tệp: ${soTaiBu} thành công, ${soLoi} lỗi`);
+  console.log(`Tải bù tệp: ${ok} thành công, ${loi} lỗi`);
 }
+
+// Dựng vào thư mục tạm trước, xong mới đổi chỗ: hỏng giữa chừng thì dữ liệu thật còn nguyên
+const tam = fs.mkdtempSync(path.join(os.tmpdir(), "dung-lai-log-"));
+const bo = new BoGhiLogNgay(tam, () => muiGio);
 for (const d of theoGio) {
   const { loai: _loai, ngay: _ngay, gio: _gio, ...con } = d;
   const tenThread = tenTot.get(String(d.threadId)) ?? "";
   if (d.loai === "thu_hoi") bo.ghiThuHoi({ ...(con as unknown as SuKienThuHoi), tenThread });
   else bo.ghiTin({ ...(con as unknown as DongLogTin), tenThread });
 }
+const ddTam = new DuongDanLog(tam);
 
-const nhan = DateTime.now().toFormat("yyMMdd-HHmm");
-const backup = path.join(goc, "_backup", `${accountId}_${ngay}_truoc-dung-lai_${nhan}`);
+// Chuyển bản cũ vào backup (KHÔNG xóa)
+const backup = path.join(goc, "_backup", `${accountId}_${ngay}_truoc-dung-lai_${DateTime.now().toFormat("yyMMdd-HHmm")}`);
 fs.mkdirSync(backup, { recursive: true });
-for (const f of fs.readdirSync(thuMucNgay)) {
-  if (f === "tep") continue; // tệp đã tải: giữ nguyên tại chỗ, dòng log mới vẫn trỏ vào
-  fs.renameSync(path.join(thuMucNgay, f), path.join(backup, f));
+const chuyen = (p: string, ten = path.basename(p)): void => {
+  if (fs.existsSync(p)) fs.renameSync(p, path.join(backup, ten));
+};
+for (const f of fs.readdirSync(thuMucNgay)) if (f !== "tep") chuyen(path.join(thuMucNgay, f));
+// Trạng thái bố cục cũ: giữ msgId cuối bằng cách chép sang _du-lieu trước khi chuyển đi
+fs.mkdirSync(dd.duLieu(accountId), { recursive: true });
+if (fs.existsSync(dd.cuTrangThaiJson(accountId)) && !fs.existsSync(dd.trangThaiJson(accountId))) {
+  fs.copyFileSync(dd.cuTrangThaiJson(accountId), dd.trangThaiJson(accountId));
 }
-for (const f of ["_danh-ba.md", "_danh-ba.json"]) {
-  if (fs.existsSync(path.join(thuMucAcc, f))) fs.renameSync(path.join(thuMucAcc, f), path.join(backup, f));
+for (const f of ["_danh-ba.md", "_danh-ba.json", "_trang-thai.md", "_trang-thai.json", "00_danh-ba.md"]) {
+  chuyen(path.join(thuMucAcc, f));
 }
+chuyen(dd.danhBaJson(accountId), "du-lieu_danh-ba.json");
+chuyen(dd.jsonl(accountId, ngay), `du-lieu_${ngay}.jsonl`);
+chuyen(dd.mucLucJson(accountId, ngay), `du-lieu_muc-luc-${ngay}.json`);
 
-const tamNgay = path.join(tam, accountId, ngay!);
-for (const f of fs.readdirSync(tamNgay)) {
-  if (fs.statSync(path.join(tamNgay, f)).isFile()) fs.copyFileSync(path.join(tamNgay, f), path.join(thuMucNgay, f));
-}
-for (const f of ["_danh-ba.md", "_danh-ba.json"]) {
-  fs.copyFileSync(path.join(tam, accountId, f), path.join(thuMucAcc, f));
-}
-// Các ngày KHÁC được phát lại chỉ để đếm danh bạ; file của chúng trong thư mục tạm bị bỏ qua
+// Chép bản mới vào chỗ
+fs.cpSync(ddTam.ngay(accountId, ngay), thuMucNgay, { recursive: true });
+fs.copyFileSync(ddTam.danhBaMd(accountId), dd.danhBaMd(accountId));
+fs.copyFileSync(ddTam.danhBaJson(accountId), dd.danhBaJson(accountId));
+fs.copyFileSync(ddTam.jsonl(accountId, ngay), dd.jsonl(accountId, ngay));
+fs.copyFileSync(ddTam.mucLucJson(accountId, ngay), dd.mucLucJson(accountId, ngay));
+
 console.log(`Đã dựng lại ${ngay}: ${theoGio.filter((d) => d.ngay === ngay).length} dòng. Bản cũ ở ${backup}`);
-console.log(fs.readdirSync(thuMucNgay).join("\n"));
