@@ -48,6 +48,9 @@ Bản `0.x` nghĩa là API và cấu hình còn có thể đổi giữa các b�
   xóa nhãn. Opt-in theo tài khoản: điền "Zalo ID nhận báo chuyển người thật" (cột
   `accounts.handoff_notify_user_id`) thì tool mới được cấp. Cột mới `threads.handoff_at`,
   `threads.handoff_reason`.
+- **Bộ mẫu tổng hợp công việc** (`templates/cong-viec/`): luật cho tác vụ hẹn giờ của Claude
+  (`HUONG-DAN.md`), sổ công việc JSON lâu dài, dashboard HTML tự chạy không cần mạng, lệnh tay
+  qua `ghi-chu-tay.md`, báo cáo theo ngày.
 - **Bố cục thư mục log gọn lại**: thư mục ngày chỉ còn `00_muc-luc.md`, `nhom/`, `rieng/`, `tep/`;
   tên file ngắn theo tên nhóm / người (trùng tên thì thêm 4 số cuối ID); dữ liệu máy đọc gom vào
   `<account>/_du-lieu/`; danh bạ / trạng thái đổi tên `00_danh-ba.md` / `00_trang-thai.md`. Mọi

@@ -118,7 +118,9 @@ export class BoGhiLogNgay {
       dong.push(`  > Trả lời **${motDong(d.trichDan.nguoiGui) || "?"}**: ${catNgan(d.trichDan.noiDung, 200)}`);
     }
     if (d.dinhKem && (d.dinhKem.ten || d.dinhKem.url)) {
-      dong.push(`  - Đính kèm (${d.loaiTin}): ${d.dinhKem.url ? `[${d.dinhKem.ten || "link"}](${d.dinhKem.url})` : d.dinhKem.ten}`);
+      // Tiêu đề link chia sẻ có thể nhiều dòng - ép một dòng, cắt ngắn để không vỡ markdown
+      const tenDk = catNgan(d.dinhKem.ten, 120) || "link";
+      dong.push(`  - Đính kèm (${d.loaiTin}): ${d.dinhKem.url ? `[${tenDk}](${d.dinhKem.url})` : tenDk}`);
     }
     const anhDaLuu = (d.tepDaLuu ?? []).filter((t) => t.loai === "anh" && t.duongDan);
     if (anhDaLuu.length === 0) for (const url of d.anh) dong.push(`  - Ảnh: ${url}`);
