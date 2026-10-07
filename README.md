@@ -234,20 +234,36 @@ khởi động có thể bỏ qua.
 #### Cấu trúc thư mục
 
 ```
-<CHAT_EXPORT_DIR>/                      mặc định data/exports
-  CLAUDE.md, AGENTS.md                  hướng dẫn AI lọc việc (tạo 1 lần, sửa tay thoải mái)
+<CHAT_EXPORT_DIR>/                        mặc định data/exports
+  CLAUDE.md, AGENTS.md                    công thức tra cứu cho AI (theo ngày / nhóm / người / từ khóa)
   <account-id>/
+    _trang-thai.md                        bot còn chạy không, mất kết nối lúc nào, lần tải bù gần nhất
+    _danh-ba.md                           MỌI cuộc trò chuyện (tên, nhóm/riêng, ID, tên file, ngày đầu-cuối,
+                                          số tin) và MỌI người (tên, ID, chat riêng không, có mặt nhóm nào)
     2026-10-05/
-      nhom-kinh-doanh_123456789.md      mỗi cuộc trò chuyện 1 file / ngày
-      nguyen-van-a_987654321.md
-      tin-nhan.jsonl                    mọi tin trong ngày, 1 dòng JSON / tin (có msgId, senderId)
-    _trang-thai.md, _trang-thai.json    bot còn chạy không, mất kết nối lúc nào, lần tải bù gần nhất
+      00_muc-luc.md                       mục lục ngày: cuộc nào, bao nhiêu tin, ai nhắn, giờ đầu-cuối
+      nhom_kinh-doanh_123456789.md        chat nhóm
+      rieng_nguyen-van-a_987654321.md     chat riêng, mang tên người kia
+      tin-nhan.jsonl                      mọi tin trong ngày, 1 dòng JSON / tin (có msgId, senderId)
 ```
+
+Tên file của một cuộc trò chuyện **giống nhau ở mọi ngày** (ID ở cuối không đổi), nên tìm
+`rieng_nguyen-van-a_*` là ra toàn bộ lịch sử chat với người đó. Chat riêng mà bạn nhắn trước thì bot
+hỏi Zalo tên người kia để đặt tên file.
+
+Cách Claude tra cứu (đã ghi sẵn trong `CLAUDE.md`):
+
+| Câu hỏi | Claude làm |
+|---|---|
+| Hôm nay có gì | đọc `00_muc-luc.md` của ngày, rồi mở các file trong đó |
+| Nhóm X bàn gì tuần này | tra `_danh-ba.md` lấy ID, mở `nhom_*_<id>.md` của các ngày |
+| Người Y giao gì | bảng Người trong `_danh-ba.md`: chat riêng + các nhóm Y có mặt |
+| Tìm từ khóa | tìm trong `*/tin-nhan.jsonl` |
 
 Một file `.md` trông như sau:
 
 ```markdown
-# Nhóm Kinh Doanh (Nhóm) - 2026-10-05
+# Kinh Doanh (Nhóm) - 2026-10-05
 
 - Tài khoản: acc-chinh
 - Thread ID: 123456789

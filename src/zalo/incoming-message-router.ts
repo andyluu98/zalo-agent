@@ -43,7 +43,7 @@ export function routeIncomingMessage(
   // ở ngay dòng dưới, không cảnh báo ở đây thì không còn chỗ nào biết
   reportPayloadAnomalies(config.id, msg);
 
-  let choTenNhom: Promise<void> | undefined;
+  let choTenNhom: Promise<string> | undefined;
   if (!msg.isSelf && msg.threadId) {
     // "Đã nhận" cho MỌI tin về tới listener, kể cả tin sắp bị lọc - client Zalo
     // thật cũng báo nhận tự động, không phụ thuộc người dùng có đọc hay không.

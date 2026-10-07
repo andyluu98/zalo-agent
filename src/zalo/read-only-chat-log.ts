@@ -5,9 +5,9 @@ import { botTimeZone } from "../config/runtime-tuning-settings.js";
 import { BoGhiLogNgay } from "../conversation/daily-chat-export.js";
 import { SoTrangThai } from "../conversation/trang-thai-chi-doc.js";
 import { xepHangTheoKhoa } from "../shared/xep-hang-theo-khoa.js";
-import { getThreadDisplayName, hasDisplayName } from "../conversation/thread-store.js";
+import { getThreadDisplayName } from "../conversation/thread-store.js";
 import { createLogger } from "../shared/logger.js";
-import { resolveGroupName } from "./resolve-group-name.js";
+import { resolveGroupName, resolveUserName } from "./resolve-group-name.js";
 import { describeForHistory, type ParsedMessage } from "./zalo-message-parser.js";
 import { mocGuiCuaTinZalo } from "./zalo-message-timestamp.js";
 
@@ -42,7 +42,7 @@ export function ghiLogChiDoc(
   accountId: string,
   api: API,
   msg: ParsedMessage,
-  choTenNhom: Promise<void> | undefined,
+  choTenNhom: Promise<string> | undefined,
 ): void {
   // Ghi nhận msgId NGAY (không đợi hàng chờ): đợt tải bù đến sau dựa vào nó để
   // bỏ tin đã ghi, mà hàng chờ có thể còn đang đợi lấy tên nhóm
@@ -52,15 +52,11 @@ export function ghiLogChiDoc(
     log.error({ accountId, err }, "Không cập nhật được sổ trạng thái");
   }
   void xepHangTheoKhoa(`${accountId}:${msg.threadId}`, async () => {
-    // Đợi tên nhóm ở lần gặp đầu để file mang tên dễ đọc thay vì chỉ có id
-    if (choTenNhom) await choTenNhom;
-    else if (msg.isGroup && !hasDisplayName(accountId, msg.threadId)) {
-      await resolveGroupName(accountId, api, msg.threadId);
-    }
+    const tenThread = await layTenThread(accountId, api, msg, choTenNhom);
     layBoGhiLog().ghiTin({
       accountId,
       threadId: msg.threadId,
-      tenThread: getThreadDisplayName(accountId, msg.threadId) || (msg.isGroup || msg.isSelf ? "" : msg.senderName),
+      tenThread,
       laNhom: msg.isGroup,
       sentAt: msg.sentAt,
       senderId: msg.senderId,
@@ -75,6 +71,24 @@ export function ghiLogChiDoc(
       anh: msg.images.map((i) => i.url),
     });
   }).catch((err) => log.error({ accountId, threadId: msg.threadId, err }, "Không ghi được log chỉ đọc"));
+}
+
+/**
+ * Tên cuộc trò chuyện cho tên file / danh bạ, theo thứ tự rẻ tới đắt: danh bạ
+ * log -> bảng threads -> người gửi (chat riêng, tin đến) -> hỏi Zalo. Chat riêng
+ * mà chủ tài khoản nhắn trước thì threadId CHÍNH LÀ uid người kia.
+ */
+async function layTenThread(
+  accountId: string,
+  api: API,
+  msg: ParsedMessage,
+  choTenNhom: Promise<string> | undefined,
+): Promise<string> {
+  const daBiet = layBoGhiLog().tenThreadDaBiet(accountId, msg.threadId) || getThreadDisplayName(accountId, msg.threadId);
+  if (daBiet) return daBiet;
+  if (msg.isGroup) return (await (choTenNhom ?? resolveGroupName(accountId, api, msg.threadId))) || "";
+  if (!msg.isSelf && msg.senderName) return msg.senderName;
+  return resolveUserName(api, msg.threadId);
 }
 
 /** Nội dung dòng log: chữ của tin, hoặc dấu giữ chỗ khi tin không có chữ */
@@ -93,7 +107,8 @@ export function routeUndoEvent(accountId: string, event: Undo): void {
     layBoGhiLog().ghiThuHoi({
       accountId,
       threadId: event.threadId,
-      tenThread: getThreadDisplayName(accountId, event.threadId),
+      tenThread:
+        layBoGhiLog().tenThreadDaBiet(accountId, event.threadId) || getThreadDisplayName(accountId, event.threadId),
       laNhom: event.isGroup,
       sentAt: mocGuiCuaTinZalo(data.ts, new Date()),
       senderName: String(data.dName || (event.isSelf ? "Tôi" : data.uidFrom || "?")),

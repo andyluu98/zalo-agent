@@ -1,8 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DateTime, IANAZone } from "luxon";
-import { boDauTiengViet } from "../shared/bo-dau-tieng-viet.js";
-import { HUONG_DAN_AI } from "./daily-chat-export-guide.js";
+import { DanhBaLog } from "./danh-ba-log.js";
+import { DAU_HIEU_HUONG_DAN, HUONG_DAN_AI } from "./daily-chat-export-guide.js";
+import { catNgan, motDong, sachTen, tenFileThread } from "./log-text-utils.js";
+import { MucLucNgay } from "./muc-luc-ngay.js";
 
 /**
  * Ghi tin nhắn ra FILE theo ngày cho chế độ chỉ đọc, để một AI khác (Claude
@@ -11,10 +13,13 @@ import { HUONG_DAN_AI } from "./daily-chat-export-guide.js";
  * Cấu trúc:
  *
  *   <thuMucGoc>/
- *     CLAUDE.md, AGENTS.md            hướng dẫn cho AI đọc log (chỉ tạo khi chưa có)
- *     <accountId>/<yyyy-MM-dd>/
- *       <ten-thread>_<threadId>.md    người đọc: mỗi cuộc trò chuyện một file
- *       tin-nhan.jsonl                máy đọc: mọi tin trong ngày, một dòng một tin
+ *     CLAUDE.md, AGENTS.md                hướng dẫn tra cứu cho AI
+ *     <accountId>/
+ *       _danh-ba.md                       mọi cuộc trò chuyện + mọi người (danh-ba-log.ts)
+ *       <yyyy-MM-dd>/
+ *         00_muc-luc.md                   mục lục của ngày (muc-luc-ngay.ts)
+ *         nhom_<ten>_<id>.md / rieng_<ten>_<id>.md   mỗi cuộc trò chuyện một file
+ *         tin-nhan.jsonl                  máy đọc: mọi tin trong ngày, một dòng một tin
  *
  * Ghi NỐI THÊM ngay khi tin đến (không gom cuối ngày): AI đọc lúc nào cũng có
  * dữ liệu mới nhất, và process chết giữa ngày không mất những gì đã ghi.
@@ -67,18 +72,38 @@ export class BoGhiLogNgay {
   private readonly fileTheoThread = new Map<string, string>();
   /** msgId -> giờ + trích đoạn, để dòng "đã thu hồi" nói được là tin nào */
   private readonly tinGanDay = new Map<string, { gio: string; trich: string }>();
+  private readonly danhBa: DanhBaLog;
+  private readonly mucLuc = new MucLucNgay();
 
   constructor(
     private readonly thuMucGoc: string,
     private readonly muiGio: () => string,
-  ) {}
+    private readonly bayGio: () => Date = () => new Date(),
+  ) {
+    this.danhBa = new DanhBaLog(thuMucGoc);
+  }
 
-  /** Tạo file hướng dẫn cho AI nếu chưa có - người dùng sửa tay thì giữ nguyên */
+  /** Tên thread đã nhớ trong danh bạ (rỗng nếu chưa gặp) */
+  tenThreadDaBiet(accountId: string, threadId: string): string {
+    return this.danhBa.tenThread(accountId, threadId);
+  }
+
+  /**
+   * Tạo file hướng dẫn cho AI. Bản cũ chưa có dấu hiệu phiên bản hiện tại thì
+   * CHUYỂN vào `_backup/` (không xóa - có thể người dùng đã sửa tay) rồi ghi bản mới.
+   */
   damBaoHuongDan(): void {
     fs.mkdirSync(this.thuMucGoc, { recursive: true });
+    const nhan = DateTime.fromJSDate(this.bayGio()).toFormat("yyMMdd-HHmm");
     for (const ten of ["CLAUDE.md", "AGENTS.md"]) {
       const p = path.join(this.thuMucGoc, ten);
-      if (!fs.existsSync(p)) fs.writeFileSync(p, HUONG_DAN_AI, "utf8");
+      if (fs.existsSync(p)) {
+        if (fs.readFileSync(p, "utf8").includes(DAU_HIEU_HUONG_DAN)) continue;
+        const backup = path.join(this.thuMucGoc, "_backup");
+        fs.mkdirSync(backup, { recursive: true });
+        fs.renameSync(p, path.join(backup, `${path.parse(ten).name}_${nhan}.md`));
+      }
+      fs.writeFileSync(p, HUONG_DAN_AI, "utf8");
     }
   }
 
@@ -100,12 +125,16 @@ export class BoGhiLogNgay {
     }
     for (const url of d.anh) dong.push(`  - Ảnh: ${url}`);
 
-    fs.appendFileSync(this.fileMd(thuMucNgay, ngay, d), `${dong.join("\n")}\n`, "utf8");
+    const fileMd = this.fileMd(thuMucNgay, ngay, d);
+    fs.appendFileSync(fileMd, `${dong.join("\n")}\n`, "utf8");
     fs.appendFileSync(
       path.join(thuMucNgay, "tin-nhan.jsonl"),
       `${JSON.stringify({ loai: "tin", ngay, gio, ...d })}\n`,
       "utf8",
     );
+
+    this.danhBa.ghiNhan({ ...d, ngay });
+    this.mucLuc.ghiNhan(thuMucNgay, ngay, { ...d, file: fileMd, gio, nguoiGui });
 
     if (d.msgId) {
       this.tinGanDay.set(d.msgId, { gio, trich: catNgan(d.noiDung, 80) });
@@ -146,8 +175,9 @@ export class BoGhiLogNgay {
 
   /**
    * File .md của thread trong ngày. Tên file chốt ở lần ghi ĐẦU TIÊN trong ngày
-   * và tìm lại theo đuôi `_<threadId>.md` khi process khởi động lại, nên tên
-   * nhóm đổi giữa ngày cũng không tách thành hai file.
+   * và tìm lại theo tiền tố `nhom_`/`rieng_` + đuôi `_<threadId>.md` khi process
+   * khởi động lại, nên tên nhóm đổi giữa ngày cũng không tách thành hai file.
+   * (File kiểu cũ không tiền tố bị bỏ qua: tin mới sang file đặt tên mới.)
    */
   private fileMd(
     thuMucNgay: string,
@@ -159,17 +189,17 @@ export class BoGhiLogNgay {
     if (daBiet) return daBiet;
 
     const duoi = `_${sachTen(t.threadId)}.md`;
-    const coSan = fs.readdirSync(thuMucNgay).find((f) => f.endsWith(duoi));
+    const tienTo = t.laNhom ? "nhom_" : "rieng_";
+    const coSan = fs.readdirSync(thuMucNgay).find((f) => f.startsWith(tienTo) && f.endsWith(duoi));
     let p: string;
     if (coSan) {
       p = path.join(thuMucNgay, coSan);
     } else {
-      const slug = taoSlug(t.tenThread) || (t.laNhom ? "nhom" : "ca-nhan");
-      p = path.join(thuMucNgay, `${slug}${duoi}`);
+      p = path.join(thuMucNgay, tenFileThread(t));
       const ten = motDong(t.tenThread) || t.threadId;
       fs.writeFileSync(
         p,
-        `# ${ten} (${t.laNhom ? "Nhóm" : "Cá nhân"}) - ${ngay}\n\n` +
+        `# ${ten} (${t.laNhom ? "Nhóm" : "Chat riêng"}) - ${ngay}\n\n` +
           `- Tài khoản: ${t.accountId}\n- Thread ID: ${t.threadId}\n\n`,
         "utf8",
       );
@@ -177,27 +207,4 @@ export class BoGhiLogNgay {
     this.fileTheoThread.set(khoa, p);
     return p;
   }
-}
-
-function taoSlug(s: string): string {
-  return boDauTiengViet(s)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 50)
-    .replace(/-+$/g, "");
-}
-
-/** Chặn ký tự phá đường dẫn trong id dùng làm tên thư mục/file */
-function sachTen(s: string): string {
-  return s.replace(/[^A-Za-z0-9_.-]/g, "_") || "_";
-}
-
-function motDong(s: string): string {
-  return s.replace(/\s+/g, " ").trim();
-}
-
-function catNgan(s: string, toiDa: number): string {
-  const g = motDong(s);
-  return g.length > toiDa ? `${g.slice(0, toiDa)}...` : g;
 }

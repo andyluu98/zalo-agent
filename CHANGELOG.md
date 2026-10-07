@@ -27,6 +27,11 @@ Bản `0.x` nghĩa là API và cấu hình còn có thể đổi giữa các b�
 - **Tải bù tin nhắn bị lỡ** khi khởi động hoặc nối lại: `requestOldMessages` từ msgId cuối đã ghi
   (lưu trong sổ trạng thái), lọc trùng theo msgId. Listener nhận thêm móc `onConnected`,
   `onClosed`, `onOldMessages`.
+- **Danh bạ + mục lục cho log chỉ đọc**: `<account>/_danh-ba.md` (mọi cuộc trò chuyện và mọi người,
+  kể cả nhóm họ có mặt) và `<ngày>/00_muc-luc.md` (cuộc nào, bao nhiêu tin, ai nhắn, giờ đầu-cuối).
+  Tên file đổi sang `nhom_<ten>_<id>.md` / `rieng_<ten>_<id>.md`, giống nhau mọi ngày; chat riêng do
+  chủ tài khoản nhắn trước lấy tên người kia qua `getUserInfo`. `CLAUDE.md` viết lại thành công thức
+  tra cứu, có dấu hiệu phiên bản: bản cũ tự chuyển vào `_backup/` khi nâng cấp.
 - **Script tự chạy khi đăng nhập Windows** (`scripts/windows/cai-tu-khoi-dong.ps1`, gỡ bằng
   `go-tu-khoi-dong.ps1`): Task Scheduler, chạy ẩn, tự khởi động lại khi chết.
 
