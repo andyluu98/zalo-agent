@@ -12,6 +12,9 @@ export type DoanMoi = { thuTu: number; tieuDe: string; noiDung: string };
 const xoaFtsCuaNguonStmt = db.prepare(
   `DELETE FROM kb_chunks_fts WHERE rowid IN (SELECT id FROM kb_chunks WHERE source_id = ?)`,
 );
+const xoaVectorCuaNguonStmt = db.prepare(
+  `DELETE FROM kb_chunk_vectors WHERE chunk_id IN (SELECT id FROM kb_chunks WHERE source_id = ?)`,
+);
 const xoaDoanCuaNguonStmt = db.prepare(`DELETE FROM kb_chunks WHERE source_id = ?`);
 const chenDoanStmt = db.prepare(`
   INSERT INTO kb_chunks (source_id, thu_tu, tieu_de, noi_dung, phang)
@@ -34,6 +37,9 @@ const chenFtsStmt = db.prepare(`INSERT INTO kb_chunks_fts (rowid, phang) VALUES 
 export function luuDoan(sourceId: string, doan: DoanMoi[], tenNguon = ""): void {
   trongGiaoDich(db, () => {
     xoaFtsCuaNguonStmt.run(sourceId);
+    // Vector phải xóa TRƯỚC đoạn (subquery cần kb_chunks còn nguyên). Đoạn
+    // mới mang id mới nên vector cũ không bao giờ khớp lại - để sót chỉ là rác.
+    xoaVectorCuaNguonStmt.run(sourceId);
     xoaDoanCuaNguonStmt.run(sourceId);
     for (const d of doan) {
       // Tên nguồn + tiêu đề (breadcrumb H1>H2>H3, xem chunk-text.ts) CŨNG vào

@@ -66,7 +66,7 @@ export function createKbSearchTool(ctx: ToolContext) {
     execute: async ({ cau_hoi }) => {
       try {
         const soLuong = kepSoLuong(getTuning("KB_TOP_K"));
-        const ketQua = timTrongKhoTriThuc({ cauHoi: cau_hoi, agentId: ctx.agent.id, soLuong });
+        const ketQua = await timTrongKhoTriThuc({ cauHoi: cau_hoi, agentId: ctx.agent.id, soLuong });
 
         if (ketQua.length === 0) {
           return ketQuaLoi(

@@ -35,6 +35,19 @@ Bản `0.x` nghĩa là API và cấu hình còn có thể đổi giữa các b�
 - **Tải tệp đính kèm về máy** cho log chỉ đọc: ảnh, file, video, tin thoại lưu vào `<ngày>/tep/`
   ngay khi nhận (link Zalo hết hạn, bản trên máy thì không). Trần mỗi tệp `CHAT_EXPORT_MAX_FILE_MB`
   (mặc định 100, `0` = tắt), tải qua `downloadFromPublicUrl` (chặn SSRF, cắt ngay khi vượt trần).
+- **Tìm theo ngữ nghĩa cho Kho tri thức** (nút "Tìm theo ngữ nghĩa" ở trang Kho tri thức).
+  Tìm lai: bm25 theo từ khóa cộng vector embedding, trộn bằng RRF - khách hỏi "phí ship"
+  vẫn ra mục "phí vận chuyển". Mặc định TẮT; chỉ cần điền tên model embedding, base URL/key
+  bỏ trống thì mượn của router LLM chung (chỉ khi là openai-compatible). Vector sinh dần ở
+  nền (bảng `kb_chunk_vectors`), đổi model tự sinh lại; embedding lỗi/chậm thì rơi về bm25.
+  Tham số mới `KB_VECTOR_MIN_SIMILARITY` (Cấu hình > Kho tri thức, mặc định 35%) chặn đoạn
+  lạc đề. Biến môi trường `KB_EMBEDDING_BASE_URL` / `KB_EMBEDDING_MODEL` / `KB_EMBEDDING_API_KEY`.
+- **Chuyển cho người thật** (tool `handoff_to_human`): khách đòi gặp nhân viên, khiếu nại,
+  hoặc bot không có thông tin thì bot tự tạm dừng ở cuộc chat đó, nhắn báo vào Zalo ID của
+  người vận hành, và trang Sessions hiện nhãn "Cần người hỗ trợ". Bật lại bot ở cuộc chat là
+  xóa nhãn. Opt-in theo tài khoản: điền "Zalo ID nhận báo chuyển người thật" (cột
+  `accounts.handoff_notify_user_id`) thì tool mới được cấp. Cột mới `threads.handoff_at`,
+  `threads.handoff_reason`.
 - **Script tự chạy khi đăng nhập Windows** (`scripts/windows/cai-tu-khoi-dong.ps1`, gỡ bằng
   `go-tu-khoi-dong.ps1`): Task Scheduler, chạy ẩn, tự khởi động lại khi chết.
 

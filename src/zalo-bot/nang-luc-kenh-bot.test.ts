@@ -48,6 +48,9 @@ describe("năng lực kênh bot", () => {
       // Nối vào bộ hẹn lịch ở V3.19 - scheduler dựng đường gửi theo KÊNH thay
       // vì khóa cứng zca-js. Bot API gửi chủ động được (đo: 10 tin/416ms).
       "schedule_task",
+      // Chỉ đổi cờ trong DB + nhắn báo qua KenhLuot (handoff-notify.ts), không
+      // cần năng lực riêng nào của zca-js
+      "handoff_to_human",
     ]);
     const chuaXet = TOOL_KEYS.filter((k) => !daXet.has(k));
     assert.deepEqual(chuaXet, [], `tool chưa xét cho kênh bot: ${chuaXet.join(", ")}`);

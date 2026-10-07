@@ -2,6 +2,7 @@ import { getTuning } from "../../config/runtime-tuning-settings.js";
 import { isImageGenConfigured } from "../../config/runtime-image-settings.js";
 import { createAddReactionTool } from "./add-reaction-tool.js";
 import { createExcelFileTool, createWordDocumentTool } from "./create-document-tools.js";
+import { createHandoffToHumanTool } from "./handoff-to-human-tool.js";
 import { createImageTool } from "./create-image-tool.js";
 import { createScheduleTaskTool } from "./schedule-task-tool.js";
 import { createSaveMemoryTool } from "./save-memory-tool.js";
@@ -119,5 +120,24 @@ export const ACTION_TOOL_DEFINITIONS: ToolDefinition[] = [
     // Luật số 1 của Hermes: job không được đẻ job
     runsInScheduledTurn: false,
     build: (ctx) => createScheduleTaskTool(ctx),
+  },
+  {
+    key: "handoff_to_human",
+    label: "Chuyển cho người thật",
+    description:
+      "Khi khách đòi gặp nhân viên, khiếu nại, hoặc bot không có thông tin: tạm dừng bot ở cuộc chat đó và nhắn báo cho người vận hành",
+    group: "action",
+    // Opt-in theo account: chưa điền Zalo ID nhận báo thì không cấp. Bot cũ
+    // không tự dưng biết tự tắt mình ở các cuộc chat.
+    available: (scope) => Boolean(scope.account.handoffNotifyUserId),
+    unavailableHint: 'Điền "Zalo ID nhận báo chuyển người thật" ở trang Tài khoản để bật tool này',
+    // Lượt theo lịch không có khách nào đang chờ để mà chuyển
+    runsInScheduledTurn: false,
+    // import ĐỘNG: handoff-notify kéo account-manager, mà account-manager đi
+    // vòng về registry này - import tĩnh là vòng import lúc nạp module.
+    build: (ctx) =>
+      createHandoffToHumanTool(ctx, async (accountId, nguoiNhanId, noiDung) =>
+        (await import("../../zalo/handoff-notify.js")).guiBaoChuyenNguoiThat(accountId, nguoiNhanId, noiDung),
+      ),
   },
 ];

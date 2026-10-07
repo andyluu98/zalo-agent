@@ -373,6 +373,18 @@ const envSchema = z.object({
   // chặn nguồn làm worker treo/chết lặp lại vô hạn qua các lần khởi động lại.
   // Đếm tăng NGAY LÚC GIÀNH (giaNguonChoXuLy), không phải lúc phát hiện hỏng.
   KB_MAX_INGEST_ATTEMPTS: z.coerce.number().int().min(1).max(5).default(2),
+  // Tìm kiếm NGỮ NGHĨA cho Kho tri thức (tìm lai bm25 + vector). Model trống =
+  // TẮT, kho chỉ tìm theo từ khóa như trước. Base URL/key trống thì dùng lại
+  // của nhà cung cấp LLM chung (chỉ khi đó là openai-compatible) - xem
+  // runtime-embedding-settings.ts. Cấu hình được từ trang Kho tri thức.
+  KB_EMBEDDING_BASE_URL: z.preprocess(emptyToUndefined, z.string().startsWith("http").optional()),
+  KB_EMBEDDING_MODEL: z.string().default(""),
+  KB_EMBEDDING_API_KEY: z.string().default(""),
+  // Độ tương đồng cosine TỐI THIỂU (tính bằng %) để một đoạn tìm theo ngữ
+  // nghĩa được tính là khớp. Không có ngưỡng thì bộ vector LUÔN trả đủ top-k
+  // (kể cả đoạn chẳng liên quan), và câu "chưa có trong tài liệu" không bao
+  // giờ xảy ra nữa - model sẽ cố trả lời từ đoạn lạc đề.
+  KB_VECTOR_MIN_SIMILARITY: z.coerce.number().int().min(0).max(95).default(35),
   // Trần RAM (old space của V8) cho worker trích xuất - cầu dao thứ HAI, song
   // song với KB_EXTRACT_TIMEOUT_MS: trần thời gian bắt tài liệu quay CPU,
   // trần này bắt tài liệu PHÌNH HEAP JS. Đo được `resourceLimits` mặc định của

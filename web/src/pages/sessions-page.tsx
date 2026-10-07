@@ -102,6 +102,13 @@ export function SessionsPage({ accounts }: { accounts: AccountInfo[] }) {
                 <div className="min-w-0">
                   <div className="truncate font-medium text-ink">{t.displayName || t.threadId}</div>
                   <div className="truncate text-[12px] text-ink-soft/60">{t.threadId}</div>
+                  {t.handoffAt && (
+                    // Bot tự chuyển cho người thật (tool handoff_to_human) - bật lại
+                    // bot ở cột bên phải là xóa nhãn này
+                    <div className="mt-1" title={t.handoffReason || undefined}>
+                      <Badge tone="red">Cần người hỗ trợ</Badge>
+                    </div>
+                  )}
                 </div>
               </div>
             </td>

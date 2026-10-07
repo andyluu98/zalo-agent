@@ -9,6 +9,7 @@ import { EmptyRow, ListToolbar, TableShell } from "../shared/ui-bits";
 import { KbAddSourceModal } from "./kb-add-source-modal";
 import { KbAssignAgentsModal } from "./kb-assign-agents-modal";
 import { KbChunksModal } from "./kb-chunks-modal";
+import { KbEmbeddingSettingsModal } from "./kb-embedding-settings-modal";
 import { KbGuideModal } from "./kb-guide-modal";
 import { xayThongDiepXoaNguon } from "./kb-delete-warning-message";
 import { trangCuoiCungConDuLieu } from "./kb-page-clamp";
@@ -53,6 +54,7 @@ export function KnowledgePage() {
   const [xemDoanCua, setXemDoanCua] = useState<KbSourceListItem | null>(null);
   const [ganAgentCho, setGanAgentCho] = useState<KbSourceListItem | null>(null);
   const [xemHuongDan, setXemHuongDan] = useState(false);
+  const [caiNguNghia, setCaiNguNghia] = useState(false);
   const [fileTha, setFileTha] = useState<File | null>(null);
   const { confirm, confirmDialog } = useConfirmDialog();
 
@@ -142,6 +144,12 @@ export function KnowledgePage() {
         aside={
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setCaiNguNghia(true)}
+              className="cursor-pointer rounded-lg border border-line px-3 py-2 text-[14px] font-medium text-ink-soft hover:bg-tile hover:text-ink"
+            >
+              Tìm theo ngữ nghĩa
+            </button>
+            <button
               onClick={() => setXemHuongDan(true)}
               className="cursor-pointer rounded-lg border border-line px-3 py-2 text-[14px] font-medium text-ink-soft hover:bg-tile hover:text-ink"
             >
@@ -230,6 +238,8 @@ export function KnowledgePage() {
           onSaved={reload}
         />
       )}
+
+      {caiNguNghia && <KbEmbeddingSettingsModal onClose={() => setCaiNguNghia(false)} />}
 
       {xemHuongDan && <KbGuideModal onClose={() => setXemHuongDan(false)} />}
 

@@ -48,6 +48,7 @@ export function AccountEditDrawer({
     autoAcceptFriends: account?.autoAcceptFriends ?? false,
     autoAcceptFriendDelayMinutes: account?.autoAcceptFriendDelayMinutes ?? 1,
     readOnly: account?.readOnly ?? false,
+    handoffNotifyUserId: account?.handoffNotifyUserId ?? "",
     allowlistMode: account?.allowlist.mode ?? "all",
     allowlistIds: (account?.allowlist.userIds ?? []).join("\n"),
     /** Chốt LÚC TẠO, không đổi được sau đó - xem `createSchema` ở account-routes */
@@ -110,6 +111,7 @@ export function AccountEditDrawer({
       autoAcceptFriends: form.autoAcceptFriends,
       autoAcceptFriendDelayMinutes: form.autoAcceptFriendDelayMinutes,
       readOnly: form.readOnly,
+      handoffNotifyUserId: form.handoffNotifyUserId.trim(),
       allowlist: {
         mode: form.allowlistMode as "all" | "list",
         userIds: form.allowlistIds.split("\n").map((s) => s.trim()).filter(Boolean),
@@ -336,6 +338,25 @@ export function AccountEditDrawer({
               )}
             </div>
           )}
+
+          <div className="space-y-2 rounded-xl border border-line p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-soft">Chuyển cho người thật</div>
+            <label className="block text-[13px] text-ink-soft" htmlFor="handoff-notify-id">
+              Zalo ID nhận báo chuyển người thật
+            </label>
+            <input
+              id="handoff-notify-id"
+              className="gc-input w-full"
+              value={form.handoffNotifyUserId}
+              onChange={(e) => setForm({ ...form, handoffNotifyUserId: e.target.value })}
+              placeholder="Bỏ trống = tắt"
+            />
+            <p className="text-[12px] leading-[1.5] text-ink-soft">
+              Khi khách đòi gặp nhân viên, khiếu nại, hoặc bot không có thông tin, bot tự tạm dừng ở cuộc chat đó và nhắn
+              báo vào Zalo ID này. Lấy ID: dùng nick của bạn nhắn cho nick bot một tin, rồi chép cột ID ở trang Sessions.
+              Xử lý xong thì bật lại bot cho cuộc chat đó ở trang Sessions.
+            </p>
+          </div>
 
           <div className="space-y-2 rounded-xl border border-line p-4">
             <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-soft">Allowlist</div>

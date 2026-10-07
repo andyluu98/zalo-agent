@@ -99,6 +99,9 @@ export type ThreadItem = {
   messageCount: number;
   lastMessageAt: string | null;
   lastSenderName: string | null;
+  /** Lúc bot chuyển cuộc chat cho người thật (ISO); rỗng = không */
+  handoffAt: string;
+  handoffReason: string;
   usage: { turns: number; totalTokens: number };
   summary: string;
 };
@@ -443,6 +446,16 @@ export const api = {
     }),
   clearImageGen: () => request<ImageGenSettings & { ok: true }>("/api/image-gen", { method: "DELETE" }),
 
+  kbEmbedding: () => request<KbEmbeddingSettings>("/api/kb-embedding"),
+  updateKbEmbedding: (update: { baseUrl?: string; model?: string; apiKey?: string }) =>
+    request<KbEmbeddingSettings & { ok: true }>("/api/kb-embedding", {
+      method: "PATCH",
+      body: JSON.stringify(update),
+    }),
+  testKbEmbedding: () =>
+    request<{ ok: boolean; soChieu?: number; error?: string }>("/api/kb-embedding/test", { method: "POST" }),
+  clearKbEmbedding: () => request<KbEmbeddingSettings & { ok: true }>("/api/kb-embedding", { method: "DELETE" }),
+
   schedule: {
     list: (accountId: string) =>
       request<{ items: ScheduledJobItem[]; timezone: string }>(
@@ -598,6 +611,8 @@ export type ManagedAccount = {
   autoAcceptFriends: boolean;
   autoAcceptFriendDelayMinutes: number;
   readOnly: boolean;
+  /** Zalo ID nhận báo khi bot chuyển khách cho người thật; rỗng = tắt tính năng */
+  handoffNotifyUserId?: string;
   /** Loại kênh - chốt lúc tạo, không đổi được sau đó */
   loai: "ca_nhan" | "bot";
   /**
@@ -802,6 +817,20 @@ export type ImageGenSettings = {
   /** apiKeyMasked trống vẫn ra chuỗi "chưa cấu hình" nên phải có cờ riêng */
   hasApiKey: boolean;
   configured: boolean;
+};
+
+/** Tìm theo ngữ nghĩa của Kho tri thức - xem `kb-embedding-routes.ts` */
+export type KbEmbeddingSettings = {
+  baseUrl: string;
+  model: string;
+  apiKeyMasked: string;
+  hasApiKey: boolean;
+  /** Đang mượn base URL / key của nhà cung cấp LLM chung */
+  muonBaseUrl: boolean;
+  muonApiKey: boolean;
+  configured: boolean;
+  /** null khi chưa đặt model */
+  tienDo: { tong: number; daNhung: number } | null;
 };
 
 // ===== Lịch hẹn (scheduler) =====
