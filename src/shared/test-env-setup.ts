@@ -24,6 +24,9 @@ export function setupTestEnv(overrides: Record<string, string> = {}): string {
     // file trong thư mục tạm, tốn công mà chẳng ai đọc
     LOG_FILE_ENABLED: "false",
     DATA_DIR: dataDir,
+    // Ép log chỉ đọc vào thư mục tạm: thiếu dòng này thì CHAT_EXPORT_DIR trong
+    // .env thật thắng và test ghi rác vào thư mục log của người dùng
+    CHAT_EXPORT_DIR: path.join(dataDir, "exports"),
 
     // anthropic để khỏi cần LLM_BASE_URL; test không gọi LLM thật
     LLM_PROVIDER: "anthropic",
