@@ -30,14 +30,29 @@ const DUOI_THEO_MIME: Record<string, string> = {
 };
 
 export function danhSachTepCanTai(msg: ParsedMessage): TepCanTai[] {
-  const ds: TepCanTai[] = msg.images.map((img, i) => ({
+  return tepCanTaiTuDong({
+    msgId: msg.msgId,
+    anh: msg.images.map((i) => i.url),
+    loaiTin: msg.loaiTin,
+    dinhKem: msg.dinhKem,
+  });
+}
+
+/** Cùng luật, đọc từ một dòng log (jsonl) - script dựng lại log dùng để tải bù tệp */
+export function tepCanTaiTuDong(d: {
+  msgId: string;
+  anh: string[];
+  loaiTin?: string;
+  dinhKem?: { ten: string; url: string };
+}): TepCanTai[] {
+  const ds: TepCanTai[] = d.anh.map((url, i) => ({
     loai: "anh",
-    url: img.url,
-    ten: `anh_${msg.msgId || "x"}${msg.images.length > 1 ? `-${i + 1}` : ""}`,
+    url,
+    ten: `anh_${d.msgId || "x"}${d.anh.length > 1 ? `-${i + 1}` : ""}`,
   }));
-  const dk = msg.dinhKem;
-  if (dk?.url && (msg.loaiTin === "file" || msg.loaiTin === "video" || msg.loaiTin === "thoai")) {
-    ds.push({ loai: msg.loaiTin, url: dk.url, ten: dk.ten || `${msg.loaiTin}_${msg.msgId || "x"}` });
+  const dk = d.dinhKem;
+  if (dk?.url && (d.loaiTin === "file" || d.loaiTin === "video" || d.loaiTin === "thoai")) {
+    ds.push({ loai: d.loaiTin, url: dk.url, ten: dk.ten || `${d.loaiTin}_${d.msgId || "x"}` });
   }
   return ds;
 }

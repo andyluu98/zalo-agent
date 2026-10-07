@@ -46,6 +46,8 @@ export type DongLogTin = {
   msgId: string;
   cliMsgId: string;
   loaiTin: string;
+  /** msgType gốc của Zalo - để nhận ra loại tin bot chưa phân loại được (loaiTin "khac") */
+  msgType?: string;
   noiDung: string;
   dinhKem?: { ten: string; url: string };
   trichDan?: { nguoiGui: string; noiDung: string };

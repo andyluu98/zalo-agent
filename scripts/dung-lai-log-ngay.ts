@@ -2,7 +2,11 @@
  * Dựng lại log chỉ đọc của MỘT ngày theo định dạng hiện tại, từ `tin-nhan.jsonl`
  * của chính ngày đó (nguồn đủ mọi tin). Dùng khi đổi định dạng file log.
  *
- *   pnpm tsx scripts/dung-lai-log-ngay.ts <CHAT_EXPORT_DIR> <accountId> <yyyy-MM-dd> [muiGio]
+ *   pnpm tsx scripts/dung-lai-log-ngay.ts <CHAT_EXPORT_DIR> <accountId> <yyyy-MM-dd> [muiGio] [--tai-tep]
+ *
+ * `--tai-tep`: tải bù ảnh / file / video / tin thoại của những tin CHƯA có bản trên máy
+ * (tin ghi trước khi có tính năng tải tệp) vào `<ngày>/tep/`, nếu link Zalo còn sống.
+ * Thư mục `tep/` luôn được GIỮ NGUYÊN tại chỗ, không chuyển vào backup.
  *
  * KHÔNG xóa gì: mọi file cũ của ngày đó + danh bạ cũ được CHUYỂN vào
  * `<CHAT_EXPORT_DIR>/_backup/<accountId>_<ngày>_truoc-dung-lai_<yyMMdd-HHmm>/`.
@@ -14,10 +18,12 @@ import os from "node:os";
 import path from "node:path";
 import { DateTime } from "luxon";
 import { BoGhiLogNgay, type DongLogTin, type SuKienThuHoi } from "../src/conversation/daily-chat-export.js";
+import { taiTep, tepCanTaiTuDong } from "../src/zalo/read-only-attachments.js";
 
 type Dong = { loai: "tin" | "thu_hoi"; sentAt: string } & Record<string, unknown>;
 
-const [goc, accountId, ngay, muiGio = "Asia/Ho_Chi_Minh"] = process.argv.slice(2);
+const coTaiTep = process.argv.includes("--tai-tep");
+const [goc, accountId, ngay, muiGio = "Asia/Ho_Chi_Minh"] = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 if (!goc || !accountId || !/^\d{4}-\d{2}-\d{2}$/.test(ngay ?? "")) {
   console.error("Cách dùng: tsx scripts/dung-lai-log-ngay.ts <CHAT_EXPORT_DIR> <accountId> <yyyy-MM-dd> [muiGio]");
   process.exit(1);
@@ -54,6 +60,25 @@ for (const d of tatCa) {
 const tam = fs.mkdtempSync(path.join(os.tmpdir(), "dung-lai-log-"));
 const bo = new BoGhiLogNgay(tam, () => muiGio);
 const theoGio = [...tatCa].sort((a, b) => a.sentAt.localeCompare(b.sentAt));
+let soTaiBu = 0;
+let soLoi = 0;
+if (coTaiTep) {
+  for (const d of theoGio) {
+    if (d.loai !== "tin" || d.ngay !== ngay || (Array.isArray(d.tepDaLuu) && d.tepDaLuu.length > 0)) continue;
+    const ds = tepCanTaiTuDong({
+      msgId: String(d.msgId ?? ""),
+      anh: Array.isArray(d.anh) ? (d.anh as string[]) : [],
+      loaiTin: String(d.loaiTin ?? ""),
+      dinhKem: d.dinhKem as { ten: string; url: string } | undefined,
+    });
+    if (ds.length === 0) continue;
+    const kq = await taiTep(thuMucNgay, String(d.gio ?? "0000"), ds, { maxBytes: 100 * 1024 * 1024 });
+    d.tepDaLuu = kq;
+    soTaiBu += kq.filter((t) => t.duongDan).length;
+    soLoi += kq.filter((t) => t.loi).length;
+  }
+  console.log(`Tải bù tệp: ${soTaiBu} thành công, ${soLoi} lỗi`);
+}
 for (const d of theoGio) {
   const { loai: _loai, ngay: _ngay, gio: _gio, ...con } = d;
   const tenThread = tenTot.get(String(d.threadId)) ?? "";
@@ -64,13 +89,18 @@ for (const d of theoGio) {
 const nhan = DateTime.now().toFormat("yyMMdd-HHmm");
 const backup = path.join(goc, "_backup", `${accountId}_${ngay}_truoc-dung-lai_${nhan}`);
 fs.mkdirSync(backup, { recursive: true });
-for (const f of fs.readdirSync(thuMucNgay)) fs.renameSync(path.join(thuMucNgay, f), path.join(backup, f));
+for (const f of fs.readdirSync(thuMucNgay)) {
+  if (f === "tep") continue; // tệp đã tải: giữ nguyên tại chỗ, dòng log mới vẫn trỏ vào
+  fs.renameSync(path.join(thuMucNgay, f), path.join(backup, f));
+}
 for (const f of ["_danh-ba.md", "_danh-ba.json"]) {
   if (fs.existsSync(path.join(thuMucAcc, f))) fs.renameSync(path.join(thuMucAcc, f), path.join(backup, f));
 }
 
 const tamNgay = path.join(tam, accountId, ngay!);
-for (const f of fs.readdirSync(tamNgay)) fs.copyFileSync(path.join(tamNgay, f), path.join(thuMucNgay, f));
+for (const f of fs.readdirSync(tamNgay)) {
+  if (fs.statSync(path.join(tamNgay, f)).isFile()) fs.copyFileSync(path.join(tamNgay, f), path.join(thuMucNgay, f));
+}
 for (const f of ["_danh-ba.md", "_danh-ba.json"]) {
   fs.copyFileSync(path.join(tam, accountId, f), path.join(thuMucAcc, f));
 }

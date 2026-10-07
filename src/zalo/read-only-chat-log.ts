@@ -70,6 +70,7 @@ export function ghiLogChiDoc(
       msgId: msg.msgId,
       cliMsgId: msg.cliMsgId,
       loaiTin: msg.loaiTin ?? "chu",
+      msgType: String(msg.rawData.msgType ?? ""),
       noiDung: describeChoLog(msg),
       ...(msg.dinhKem ? { dinhKem: msg.dinhKem } : {}),
       ...(msg.trichDan ? { trichDan: msg.trichDan } : {}),
@@ -101,6 +102,7 @@ async function layTenThread(
 function describeChoLog(msg: ParsedMessage): string {
   if (msg.text.trim()) return msg.text;
   if (msg.images.length > 0) return msg.images.length > 1 ? `[${msg.images.length} ảnh]` : "[ảnh]";
+  if (msg.loaiTin === "khac") return `[loại tin khác: ${String(msg.rawData.msgType ?? "?")}]`;
   return describeForHistory(msg);
 }
 
