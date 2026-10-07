@@ -50,7 +50,9 @@ Bản `0.x` nghĩa là API và cấu hình còn có thể đổi giữa các b�
   `threads.handoff_reason`.
 - **Bộ mẫu tổng hợp công việc** (`templates/cong-viec/`): luật cho tác vụ hẹn giờ của Claude
   (`HUONG-DAN.md`), sổ công việc JSON lâu dài, dashboard HTML tự chạy không cần mạng, lệnh tay
-  qua `ghi-chu-tay.md`, báo cáo theo ngày.
+  qua `ghi-chu-tay.md`, báo cáo theo ngày. Dashboard có ba kiểu xem: danh sách, Kanban theo trạng thái,
+  ma trận Eisenhower; `HUONG-DAN.md` v2 chấm riêng hai trục Gấp / Quan trọng (`diemGap`, `diemQuanTrong`,
+  `oEisenhower`, `lyDoO`), sổ cũ chưa có hai trục thì dashboard ước tính tạm.
 - **Bố cục thư mục log gọn lại**: thư mục ngày chỉ còn `00_muc-luc.md`, `nhom/`, `rieng/`, `tep/`;
   tên file ngắn theo tên nhóm / người (trùng tên thì thêm 4 số cuối ID); dữ liệu máy đọc gom vào
   `<account>/_du-lieu/`; danh bạ / trạng thái đổi tên `00_danh-ba.md` / `00_trang-thai.md`. Mọi

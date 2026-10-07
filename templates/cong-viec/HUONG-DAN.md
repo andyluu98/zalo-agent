@@ -1,4 +1,4 @@
-<!-- zalo-agent-cong-viec v1 -->
+<!-- zalo-agent-cong-viec v2 -->
 # Hướng dẫn tổng hợp công việc từ log Zalo
 
 File này là luật cho lượt tổng hợp tự động (tác vụ hẹn giờ của Claude Desktop). Sửa thoải mái,
@@ -48,7 +48,7 @@ nhất là mục **Cấu hình** ngay dưới. Thư mục này nằm cạnh log 
    - Bị nhắc lại -> `lanNhac + 1`.
    - Bị hủy / đổi ý ("thôi khỏi", tin yêu cầu bị thu hồi) -> `huy`, ghi lý do.
    Mỗi thay đổi thêm một dòng vào `capNhat` của việc đó (lúc nào, đổi gì, vì tin nào).
-7. **Chấm điểm** lại MỌI việc đang mở (mục "Chấm mức quan trọng").
+7. **Chấm điểm** lại MỌI việc đang mở theo hai trục (mục "Chấm điểm"), xếp ô Eisenhower.
 8. **Ghi kết quả**:
    - `so-cong-viec.json` (cập nhật `capNhatLuc`, `docLogDen`, `lichSuNgay`).
    - `du-lieu-dashboard.js` = `window.CONG_VIEC = ` + nguyên nội dung JSON vừa ghi + `;`.
@@ -69,20 +69,44 @@ thống, câu hỏi đã được trả lời ngay trong cuộc trò chuyện.
 Hạn chót: đổi sang ngày giờ cụ thể theo ngày của tin ("17h hôm nay" trong tin ngày 07/10 ->
 `2026-10-07T17:00`). Giữ nguyên câu gốc ở `hanGoc`. Không có hạn thì `han: null`. Không đoán hạn.
 
-## Chấm mức quan trọng (điểm 0-100)
+## Chấm điểm: hai trục Gấp và Quan trọng (mỗi trục 0-100)
+
+Hai trục tách riêng để xếp ma trận Eisenhower: một việc có thể gấp mà không quan trọng, hoặc quan
+trọng mà chưa gấp.
+
+**Gấp** (`diemGap`, cộng dồn, tối đa 100):
 
 | Dấu hiệu | Điểm |
 |---|---|
-| Đã quá hạn | +40 |
-| Hạn trong hôm nay | +30 |
-| Hạn ngày mai | +15 |
-| Người giao trong danh sách quan trọng / nhóm quan trọng | +20 |
-| Có từ khóa gấp | +15 |
-| Liên quan tiền, hợp đồng, báo giá, thanh toán, khách hàng | +15 |
-| Bị nhắc lại (mỗi lần, tối đa +20) | +10 |
+| Đã quá hạn | +70 |
+| Hạn trong hôm nay | +60 |
+| Hạn ngày mai | +50 |
+| Hạn trong 3 ngày tới | +25 |
+| Có từ khóa gấp | +25 |
+| Bị nhắc lại (mỗi lần, tối đa +30) | +15 |
 | Tồn đọng trên 3 ngày | +10 |
 
-`uuTien`: `cao` khi điểm >= 50, `trung` 25-49, `thap` < 25. `lyDoUuTien` ghi các dấu hiệu đã cộng.
+**Quan trọng** (`diemQuanTrong`, cộng dồn, tối đa 100):
+
+| Dấu hiệu | Điểm |
+|---|---|
+| Người giao / nhóm nằm trong danh sách quan trọng (mục Cấu hình) | +50 |
+| Liên quan khách hàng, đối tác bên ngoài, tiền, hợp đồng, báo giá, thanh toán | +50 |
+| Cam kết của chủ tài khoản có giờ hẹn cụ thể (lịch dạy, họp, hẹn gặp) | +20 |
+| Ảnh hưởng nhiều người (cả nhóm, cả phòng) | +15 |
+
+**Ô Eisenhower** (`oEisenhower`), mỗi trục từ 50 trở lên là "có":
+
+| | Gấp | Không gấp |
+|---|---|---|
+| **Quan trọng** | 1 - Làm ngay | 2 - Lên lịch |
+| **Không quan trọng** | 3 - Giao / làm nhanh | 4 - Để sau / bỏ |
+
+- `lyDoO`: một câu vì sao việc nằm ở ô đó (vd "hạn ngày mai + dạy cho khách Ariston").
+- `diem` = trung bình hai trục (làm tròn), dùng để xếp thứ tự trong danh sách.
+- `uuTien`: `cao` khi `diem` >= 50, `trung` 25-49, `thap` < 25.
+- `lyDoUuTien`: liệt kê mọi dấu hiệu đã cộng, ở cả hai trục.
+- Chấm lại MỌI việc đang mở mỗi lần chạy: hạn đến gần thì điểm Gấp tăng, việc tự chuyển ô.
 
 ## Ràng buộc
 
@@ -113,9 +137,13 @@ Hạn chót: đổi sang ngày giờ cụ thể theo ngày của tin ("17h hôm 
       "han": "2026-10-07T17:00",
       "hanGoc": "trước 17h hôm nay",
       "trangThai": "moi",
-      "diem": 75,
+      "diemGap": 85,
+      "diemQuanTrong": 50,
+      "oEisenhower": 1,
+      "lyDoO": "hạn 17h hôm nay + báo giá cho khách",
+      "diem": 68,
       "uuTien": "cao",
-      "lyDoUuTien": ["hạn hôm nay", "báo giá", "từ khóa gấp"],
+      "lyDoUuTien": ["hạn hôm nay", "từ khóa gấp", "báo giá / khách hàng"],
       "lanNhac": 1,
       "ngayPhatHien": "2026-10-07",
       "xongLuc": null,
@@ -136,8 +164,12 @@ Hạn chót: đổi sang ngày giờ cụ thể theo ngày của tin ("17h hôm 
 
 > Cảnh báo: ... (chỉ khi có)
 
-## Quan trọng nhất
-| # | Việc | Người giao | Hạn | Trạng thái | Nguồn |
+## Ma trận Eisenhower
+### 1 - Làm ngay (gấp + quan trọng)
+### 2 - Lên lịch (quan trọng, chưa gấp)
+### 3 - Giao / làm nhanh (gấp, không quan trọng)
+### 4 - Để sau / bỏ
+(mỗi ô: bảng | # | Việc | Người giao | Hạn | Trạng thái | Nguồn |)
 
 ## Quá hạn
 ## Hạn hôm nay

@@ -323,7 +323,7 @@ viết báo cáo hôm nay, làm mới dashboard. Trả lời tôi ngắn gọn: 
 |---|---|
 | `HUONG-DAN.md` | Luật: thế nào là việc, chấm điểm ưu tiên (hạn, người quan trọng, từ khóa gấp, tiền / hợp đồng, bị nhắc lại, tồn đọng), quy trình mỗi lần chạy |
 | `so-cong-viec.json` | Sổ công việc, nguồn sự thật; mỗi việc có nguồn (file log + giờ + trích) |
-| `dashboard.html` + `du-lieu-dashboard.js` | Mở bằng trình duyệt, không cần mạng: chỉ số, lọc theo trạng thái / người, chi tiết tin gốc, biểu đồ 14 ngày |
+| `dashboard.html` + `du-lieu-dashboard.js` | Mở bằng trình duyệt, không cần mạng. Ba kiểu xem: **Danh sách** (lọc trạng thái / người), **Kanban** (Mới / Đang làm / Chờ phản hồi / Xong), **Ma trận Eisenhower** (Làm ngay / Lên lịch / Giao / Để sau, chấm theo hai trục Gấp và Quan trọng); chi tiết tin gốc, biểu đồ 14 ngày |
 | `ghi-chu-tay.md` | Lệnh tay (`#12 xong`, `#7 han 2026-10-10`), lần chạy sau áp dụng |
 | `bao-cao/<ngày>.md` | Báo cáo từng ngày |
 

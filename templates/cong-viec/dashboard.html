@@ -8,18 +8,18 @@
   :root {
     --bg: #f5f6f8; --panel: #ffffff; --ink: #18202b; --soft: #5b6676; --line: #e3e7ed;
     --accent: #2457d6; --red: #c8352b; --red-bg: #fdeceb; --amber: #b86e00; --amber-bg: #fff4e0;
-    --green: #1f8a4c; --green-bg: #e7f6ed; --gray-bg: #eef0f3; --shadow: 0 1px 2px rgba(16,24,40,.06);
+    --green: #1f8a4c; --green-bg: #e7f6ed; --blue-bg: #e8effd; --gray-bg: #eef0f3; --shadow: 0 1px 2px rgba(16,24,40,.06);
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #0f1318; --panel: #171c23; --ink: #e8ecf1; --soft: #95a1b2; --line: #263040;
       --accent: #6d9bff; --red: #ff7a6e; --red-bg: #3a1d1b; --amber: #f2b250; --amber-bg: #372a12;
-      --green: #5fd08f; --green-bg: #15301f; --gray-bg: #212833; --shadow: none;
+      --green: #5fd08f; --green-bg: #15301f; --blue-bg: #18243d; --gray-bg: #212833; --shadow: none;
     }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
-  .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 24px 16px 48px; }
   header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
   h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
   .meta { color: var(--soft); font-size: 13px; }
@@ -31,10 +31,16 @@
   .kpi span { color: var(--soft); font-size: 13px; }
   .kpi.red b { color: var(--red); } .kpi.amber b { color: var(--amber); } .kpi.green b { color: var(--green); }
   .grid { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
+  .grid.wide { grid-template-columns: 1fr; }
+  .grid.wide aside { display: none; }
   @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
-  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; border-bottom: 1px solid var(--line); }
-  .tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; border-bottom: 1px solid var(--line); align-items: center; }
+  .views { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .view { border: 0; background: transparent; color: var(--soft); padding: 6px 12px; cursor: pointer; font: inherit; font-size: 13px; }
+  .view + .view { border-left: 1px solid var(--line); }
+  .view.on { background: var(--ink); color: var(--panel); }
+  .tabs { display: flex; flex-wrap: wrap; gap: 4px; width: 100%; }
   .tab { border: 1px solid var(--line); background: transparent; color: var(--soft); border-radius: 999px; padding: 5px 12px; cursor: pointer; font: inherit; font-size: 13px; }
   .tab.on { background: var(--accent); border-color: var(--accent); color: #fff; }
   .tab small { opacity: .8; margin-left: 4px; }
@@ -62,6 +68,32 @@
   .src a { color: var(--accent); text-decoration: none; }
   .tl { font-size: 12.5px; color: var(--soft); margin: 2px 0; }
   .empty { padding: 32px; text-align: center; color: var(--soft); }
+  /* Kanban + ma trận */
+  .board { display: grid; gap: 12px; padding: 12px; }
+  .board.kanban { grid-template-columns: repeat(4, minmax(220px, 1fr)); overflow-x: auto; }
+  .board.matrix { grid-template-columns: 1fr 1fr; }
+  @media (max-width: 760px) { .board.matrix { grid-template-columns: 1fr; } }
+  .col { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px; min-height: 120px; }
+  .col h3 { margin: 0 0 2px; font-size: 14px; display: flex; justify-content: space-between; align-items: baseline; }
+  .col h3 small { color: var(--soft); font-weight: 400; }
+  .col .hint { font-size: 12px; color: var(--soft); margin-bottom: 8px; }
+  .q1 { border-top: 4px solid var(--red); } .q2 { border-top: 4px solid var(--accent); }
+  .q3 { border-top: 4px solid var(--amber); } .q4 { border-top: 4px solid var(--soft); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 9px 10px; margin-bottom: 8px; cursor: pointer; box-shadow: var(--shadow); width: 100%; text-align: left; color: inherit; font: inherit; display: block; }
+  .card:hover { border-color: var(--accent); }
+  .card.qua { border-left: 4px solid var(--red); } .card.nay { border-left: 4px solid var(--amber); }
+  .card .title { font-size: 13.5px; }
+  .card .sub { font-size: 12px; }
+  .card .badges { justify-content: flex-start; margin-top: 6px; }
+  .card .why { font-size: 12px; color: var(--soft); margin-top: 4px; font-style: italic; }
+  .axis { font-size: 11.5px; color: var(--soft); }
+  .note { font-size: 12px; color: var(--soft); padding: 0 12px 12px; }
+  dialog { border: 1px solid var(--line); border-radius: 12px; padding: 0; width: min(680px, 94vw); background: var(--panel); color: var(--ink); }
+  dialog::backdrop { background: rgba(0,0,0,.35); }
+  dialog .dh { display: flex; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  dialog .db { padding: 12px 16px 16px; }
+  dialog .db .detail { display: block; padding: 0; }
+  .x { border: 0; background: none; font-size: 20px; cursor: pointer; color: var(--soft); }
   aside .panel { padding: 14px; margin-bottom: 16px; }
   aside h3 { margin: 0 0 10px; font-size: 14px; }
   .legend { display: flex; gap: 12px; font-size: 12px; color: var(--soft); margin-top: 6px; }
@@ -79,14 +111,20 @@
   </header>
   <div id="alerts"></div>
   <div class="kpis" id="kpis"></div>
-  <div class="grid">
+  <div class="grid" id="grid">
     <section class="panel">
       <div class="toolbar">
-        <div class="tabs" id="tabs"></div>
+        <div class="views" role="tablist" aria-label="Kiểu xem">
+          <button class="view" data-view="list">Danh sách</button>
+          <button class="view" data-view="kanban">Kanban</button>
+          <button class="view" data-view="matrix">Ma trận Eisenhower</button>
+        </div>
         <input id="q" type="search" placeholder="Tìm việc, người, nhóm..." />
         <select id="nguoi"><option value="">Mọi người giao</option></select>
+        <div class="tabs" id="tabs"></div>
       </div>
       <ul class="list" id="list"></ul>
+      <div id="board"></div>
     </section>
     <aside>
       <div class="panel"><h3>14 ngày gần đây</h3><div id="chart"></div>
@@ -96,6 +134,7 @@
     </aside>
   </div>
 </div>
+<dialog id="dlg"><div class="dh"><div id="dlgTitle" class="title"></div><button class="x" data-close aria-label="Đóng">×</button></div><div class="db" id="dlgBody"></div></dialog>
 <script src="du-lieu-dashboard.js"></script>
 <script>
 (function () {
@@ -127,6 +166,28 @@
     return (String(v.han).length > 10 ? d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) + " " : "") + ngay;
   };
 
+  // Hai trục Eisenhower. Sổ cũ (chưa có diemGap / diemQuanTrong) thì ước tính tạm từ hạn + lý do;
+  // lượt tổng hợp kế tiếp theo HUONG-DAN v2 sẽ chấm chính xác.
+  const ngayToi = (h) => Math.floor((mocHan(h) - new Date(homNay + "T00:00:00")) / 864e5);
+  for (const v of D.viec) {
+    v._uocTinh = v.diemGap == null || v.diemQuanTrong == null;
+    if (v.diemGap == null) {
+      let g = 0;
+      if (v.han) { const n = ngayToi(v.han); g += quaHan(v) ? 70 : n <= 0 ? 60 : n === 1 ? 50 : n <= 3 ? 25 : 0; }
+      if ((v.lyDoUuTien || []).some((l) => /gấp/i.test(l))) g += 25;
+      g += Math.min(30, 15 * Math.max(0, (v.lanNhac || 1) - 1));
+      v.diemGap = Math.min(100, g);
+    }
+    if (v.diemQuanTrong == null) {
+      const ly = (v.lyDoUuTien || []).join(" ");
+      let q = 0;
+      if (/quan trọng|sếp/i.test(ly)) q += 50;
+      if (/khách|tiền|hợp đồng|báo giá|thanh toán|đối tác/i.test(ly)) q += 50;
+      v.diemQuanTrong = Math.min(100, q);
+    }
+    if (!v.oEisenhower) v.oEisenhower = v.diemGap >= 50 ? (v.diemQuanTrong >= 50 ? 1 : 3) : v.diemQuanTrong >= 50 ? 2 : 4;
+  }
+
   // Header + cảnh báo bot
   $("meta").textContent = "Cập nhật " + (D.capNhatLuc ? new Date(D.capNhatLuc).toLocaleString("vi-VN") : "?") + " · " + D.viec.length + " việc trong sổ";
   const canhBao = Object.entries(D.trangThaiBot || {}).filter(([, t]) => t && t.canhBao);
@@ -142,55 +203,111 @@
     ["xong", "Đã xong", (v) => v.trangThai === "xong"],
     ["all", "Tất cả", () => true],
   ];
-  const xong7 = D.viec.filter((v) => v.trangThai === "xong" && v.xongLuc && now - new Date(v.xongLuc) < 7 * 864e5).length;
+  const xong7 = (v) => v.trangThai === "xong" && v.xongLuc && now - new Date(v.xongLuc) < 7 * 864e5;
   const kpis = [
     ["qua", "Quá hạn", D.viec.filter(quaHan).length, "red"],
     ["nay", "Hạn hôm nay", D.viec.filter(hanNay).length, "amber"],
     ["ton", "Tồn đọng", D.viec.filter(tonDong).length, ""],
     ["mo", "Đang mở", D.viec.filter((v) => MO.has(v.trangThai)).length, ""],
-    ["xong", "Xong 7 ngày", xong7, "green"],
+    ["xong", "Xong 7 ngày", D.viec.filter(xong7).length, "green"],
   ];
   let tab = "mo";
+  let view = "list";
+  try { view = localStorage.getItem("cv-view") || "list"; } catch { /* không có storage */ }
   $("kpis").innerHTML = kpis.map(([k, t, n, c]) => `<button class="kpi ${c}" data-tab="${k}"><b>${n}</b><span>${t}</span></button>`).join("");
 
   const nguoiSet = [...new Set(D.viec.map((v) => v.nguoiGiao).filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi"));
   $("nguoi").innerHTML += nguoiSet.map((n) => `<option>${esc(n)}</option>`).join("");
 
-  function ve() {
-    const loc = tabs.find((t) => t[0] === tab)[2];
-    $("tabs").innerHTML = tabs.map(([k, t, f]) => `<button class="tab ${k === tab ? "on" : ""}" data-tab="${k}">${t}<small>${D.viec.filter(f).length}</small></button>`).join("");
+  const sapXep = (a, b) => (b.diem || 0) - (a.diem || 0) || String(a.han || "9").localeCompare(String(b.han || "9"));
+  const locChung = (v) => {
     const q = $("q").value.trim().toLowerCase();
     const ng = $("nguoi").value;
-    const ds = D.viec
-      .filter(loc)
-      .filter((v) => !ng || v.nguoiGiao === ng)
-      .filter((v) => !q || [v.tieuDe, v.chiTiet, v.nguoiGiao, v.giaoCho, v.cuocTroChuyen].join(" ").toLowerCase().includes(q))
-      .sort((a, b) => (b.diem || 0) - (a.diem || 0) || String(a.han || "9").localeCompare(String(b.han || "9")));
-    if (!ds.length) { $("list").innerHTML = '<li class="empty">Không có việc nào ở mục này.</li>'; return; }
-    $("list").innerHTML = ds.map((v) => {
-      const badges = [];
-      if (quaHan(v)) badges.push('<span class="badge b-qua">Quá hạn ' + esc(gioHan(v)) + "</span>");
-      else if (hanNay(v)) badges.push('<span class="badge b-nay">Hạn ' + esc(gioHan(v)) + "</span>");
-      else if (v.han && MO.has(v.trangThai)) badges.push('<span class="badge">Hạn ' + esc(gioHan(v)) + "</span>");
-      badges.push(`<span class="badge ${v.trangThai === "xong" ? "b-xong" : ""}">${TEN_TT[v.trangThai] || esc(v.trangThai)}</span>`);
-      if ((v.lanNhac || 1) > 1) badges.push(`<span class="badge">Nhắc ${v.lanNhac} lần</span>`);
-      const nguon = (v.nguon || []).map((n) => `<div class="src"><a href="../${esc(acc)}/${esc(n.file)}">${esc(n.file)}</a> · ${esc(n.gio)}<br>“${esc(n.trich)}”</div>`).join("");
-      const cn = (v.capNhat || []).map((c) => `<div class="tl">${esc(String(c.luc).replace("T", " ").slice(0, 16))} · ${esc(c.noiDung)}</div>`).join("");
-      return `<li class="item"><button class="row">
+    return (!ng || v.nguoiGiao === ng) && (!q || [v.tieuDe, v.chiTiet, v.nguoiGiao, v.giaoCho, v.cuocTroChuyen].join(" ").toLowerCase().includes(q));
+  };
+  const badgesCua = (v) => {
+    const b = [];
+    if (quaHan(v)) b.push('<span class="badge b-qua">Quá hạn ' + esc(gioHan(v)) + "</span>");
+    else if (hanNay(v)) b.push('<span class="badge b-nay">Hạn ' + esc(gioHan(v)) + "</span>");
+    else if (v.han && MO.has(v.trangThai)) b.push('<span class="badge">Hạn ' + esc(gioHan(v)) + "</span>");
+    b.push(`<span class="badge ${v.trangThai === "xong" ? "b-xong" : ""}">${TEN_TT[v.trangThai] || esc(v.trangThai)}</span>`);
+    if ((v.lanNhac || 1) > 1) b.push(`<span class="badge">Nhắc ${v.lanNhac} lần</span>`);
+    return b.join("");
+  };
+  const chiTietCua = (v) => {
+    const nguon = (v.nguon || []).map((n) => `<div class="src"><a href="../${esc(acc)}/${esc(n.file)}">${esc(n.file)}</a> · ${esc(n.gio)}<br>“${esc(n.trich)}”</div>`).join("");
+    const cn = (v.capNhat || []).map((c) => `<div class="tl">${esc(String(c.luc).replace("T", " ").slice(0, 16))} · ${esc(c.noiDung)}</div>`).join("");
+    return `<div class="detail">
+      ${v.chiTiet ? `<p>${esc(v.chiTiet)}</p>` : ""}
+      ${v.hanGoc ? `<p><b>Hạn gốc:</b> ${esc(v.hanGoc)}</p>` : ""}
+      <p><b>Gấp</b> ${v.diemGap} · <b>Quan trọng</b> ${v.diemQuanTrong} · ô ${v.oEisenhower}${v._uocTinh ? " (ước tính)" : ""}${v.lyDoO ? ": " + esc(v.lyDoO) : ""}</p>
+      ${(v.lyDoUuTien || []).length ? `<p><b>Dấu hiệu:</b> ${v.lyDoUuTien.map(esc).join(", ")}</p>` : ""}
+      ${v.ghiChu ? `<p><b>Ghi chú:</b> ${esc(v.ghiChu)}</p>` : ""}
+      <h4>Tin gốc</h4>${nguon || '<div class="tl">Không có</div>'}
+      ${cn ? `<h4>Lịch sử</h4>${cn}` : ""}
+    </div>`;
+  };
+  const theCua = (v) => `<button class="card ${quaHan(v) ? "qua" : hanNay(v) ? "nay" : ""}" data-id="${v.id}">
+      <div class="title">#${v.id} ${esc(v.tieuDe)}</div>
+      <div class="sub">${esc(v.nguoiGiao)} → ${esc(v.giaoCho)} · ${esc(v.cuocTroChuyen)}</div>
+      <div class="badges">${badgesCua(v)}</div>
+      ${view === "matrix" && v.lyDoO ? `<div class="why">${esc(v.lyDoO)}</div>` : ""}
+    </button>`;
+
+  function veDanhSach() {
+    const loc = tabs.find((t) => t[0] === tab)[2];
+    $("tabs").innerHTML = tabs.map(([k, t, f]) => `<button class="tab ${k === tab ? "on" : ""}" data-tab="${k}">${t}<small>${D.viec.filter(f).length}</small></button>`).join("");
+    const ds = D.viec.filter(loc).filter(locChung).sort(sapXep);
+    $("list").innerHTML = ds.length
+      ? ds.map((v) => `<li class="item"><button class="row">
           <div class="score p-${esc(v.uuTien || "thap")}">${v.diem ?? "-"}</div>
           <div><div class="title">#${v.id} ${esc(v.tieuDe)}</div>
             <div class="sub">${esc(v.nguoiGiao)} → ${esc(v.giaoCho)} · ${esc(v.cuocTroChuyen)} · phát hiện ${esc(v.ngayPhatHien)}</div></div>
-          <div class="badges">${badges.join("")}</div>
-        </button>
-        <div class="detail">
-          ${v.chiTiet ? `<p>${esc(v.chiTiet)}</p>` : ""}
-          ${v.hanGoc ? `<p><b>Hạn gốc:</b> ${esc(v.hanGoc)}</p>` : ""}
-          ${(v.lyDoUuTien || []).length ? `<p><b>Vì sao quan trọng:</b> ${v.lyDoUuTien.map(esc).join(", ")}</p>` : ""}
-          ${v.ghiChu ? `<p><b>Ghi chú:</b> ${esc(v.ghiChu)}</p>` : ""}
-          <h4>Tin gốc</h4>${nguon || '<div class="tl">Không có</div>'}
-          ${cn ? `<h4>Lịch sử</h4>${cn}` : ""}
-        </div></li>`;
+          <div class="badges">${badgesCua(v)}</div>
+        </button>${chiTietCua(v)}</li>`).join("")
+      : '<li class="empty">Không có việc nào ở mục này.</li>';
+  }
+
+  function veKanban() {
+    const cot = [
+      ["moi", "Mới", "Chưa bắt đầu"],
+      ["dang_lam", "Đang làm", "Đã nhận, đang xử lý"],
+      ["cho_phan_hoi", "Chờ phản hồi", "Đợi người khác / lâu không ai nhắc"],
+      ["xong", "Xong", "7 ngày gần đây"],
+    ];
+    const ds = D.viec.filter(locChung);
+    $("board").className = "board kanban";
+    $("board").innerHTML = cot.map(([tt, ten, goiY]) => {
+      const the = ds.filter((v) => (tt === "xong" ? xong7(v) : v.trangThai === tt)).sort(sapXep);
+      return `<div class="col"><h3>${ten}<small>${the.length}</small></h3><div class="hint">${goiY}</div>${the.map(theCua).join("") || '<div class="tl">Trống</div>'}</div>`;
     }).join("");
+  }
+
+  function veMaTran() {
+    const o = [
+      [1, "q1", "1 · Làm ngay", "Gấp + quan trọng"],
+      [2, "q2", "2 · Lên lịch", "Quan trọng, chưa gấp"],
+      [3, "q3", "3 · Giao / làm nhanh", "Gấp, không quan trọng"],
+      [4, "q4", "4 · Để sau / bỏ", "Không gấp, không quan trọng"],
+    ];
+    const ds = D.viec.filter((v) => MO.has(v.trangThai)).filter(locChung);
+    $("board").className = "board matrix";
+    const coUocTinh = ds.some((v) => v._uocTinh);
+    $("board").innerHTML = o.map(([so, cls, ten, goiY]) => {
+      const the = ds.filter((v) => Number(v.oEisenhower) === so).sort(sapXep);
+      return `<div class="col ${cls}"><h3>${ten}<small>${the.length}</small></h3><div class="hint">${goiY}</div>${the.map(theCua).join("") || '<div class="tl">Trống</div>'}</div>`;
+    }).join("") + (coUocTinh ? '<div class="note" style="grid-column:1/-1">Một số việc chưa có điểm hai trục, đang xếp ô theo ước tính. Lượt tổng hợp kế tiếp sẽ chấm chính xác.</div>' : "");
+  }
+
+  function ve() {
+    document.querySelectorAll(".view").forEach((b) => b.classList.toggle("on", b.dataset.view === view));
+    $("grid").classList.toggle("wide", view !== "list");
+    $("list").style.display = view === "list" ? "" : "none";
+    $("tabs").style.display = view === "list" ? "" : "none";
+    $("board").style.display = view === "list" ? "none" : "";
+    if (view === "list") veDanhSach();
+    else if (view === "kanban") veKanban();
+    else veMaTran();
   }
 
   // Biểu đồ 14 ngày: việc mới vs xong
@@ -216,8 +333,19 @@
   $("who").innerHTML = top.length ? top.map(([n, c]) => `<div class="who"><span>${esc(n)}</span><b>${c}</b></div>`).join("") : '<div class="tl">Không có việc mở</div>';
 
   document.addEventListener("click", (e) => {
+    const vw = e.target.closest("[data-view]");
+    if (vw) { view = vw.dataset.view; try { localStorage.setItem("cv-view", view); } catch { /* bỏ qua */ } ve(); return; }
     const t = e.target.closest("[data-tab]");
-    if (t) { tab = t.dataset.tab; ve(); return; }
+    if (t) { tab = t.dataset.tab; view = "list"; ve(); return; }
+    const c = e.target.closest(".card");
+    if (c) {
+      const v = D.viec.find((x) => String(x.id) === c.dataset.id);
+      $("dlgTitle").textContent = `#${v.id} ${v.tieuDe}`;
+      $("dlgBody").innerHTML = `<div class="sub" style="margin-bottom:8px">${esc(v.nguoiGiao)} → ${esc(v.giaoCho)} · ${esc(v.cuocTroChuyen)}</div><div class="badges" style="justify-content:flex-start;margin-bottom:10px">${badgesCua(v)}</div>${chiTietCua(v)}`;
+      $("dlg").showModal();
+      return;
+    }
+    if (e.target.closest("[data-close]") || e.target === $("dlg")) { $("dlg").close(); return; }
     const r = e.target.closest(".row");
     if (r) r.parentElement.classList.toggle("open");
   });
