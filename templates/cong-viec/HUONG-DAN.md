@@ -102,7 +102,7 @@ trọng mà chưa gấp.
 | **Quan trọng** | 1 - Làm ngay | 2 - Lên lịch |
 | **Không quan trọng** | 3 - Giao / làm nhanh | 4 - Để sau / bỏ |
 
-- `lyDoO`: một câu vì sao việc nằm ở ô đó (vd "hạn ngày mai + dạy cho khách Ariston").
+- `lyDoO`: một câu vì sao việc nằm ở ô đó (vd "hạn ngày mai + buổi dạy cho khách A").
 - `diem` = trung bình hai trục (làm tròn), dùng để xếp thứ tự trong danh sách.
 - `uuTien`: `cao` khi `diem` >= 50, `trung` 25-49, `thap` < 25.
 - `lyDoUuTien`: liệt kê mọi dấu hiệu đã cộng, ở cả hai trục.
