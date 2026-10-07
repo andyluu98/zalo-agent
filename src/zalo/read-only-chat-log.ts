@@ -1,12 +1,13 @@
 import type { API, Undo } from "zca-js";
 import { getAccount } from "../config/account-store.js";
-import { chatExportDir } from "../config/env.js";
+import { chatExportDir, env } from "../config/env.js";
 import { botTimeZone } from "../config/runtime-tuning-settings.js";
 import { BoGhiLogNgay } from "../conversation/daily-chat-export.js";
 import { SoTrangThai } from "../conversation/trang-thai-chi-doc.js";
 import { xepHangTheoKhoa } from "../shared/xep-hang-theo-khoa.js";
 import { getThreadDisplayName } from "../conversation/thread-store.js";
 import { createLogger } from "../shared/logger.js";
+import { danhSachTepCanTai, taiTep } from "./read-only-attachments.js";
 import { resolveGroupName, resolveUserName } from "./resolve-group-name.js";
 import { describeForHistory, type ParsedMessage } from "./zalo-message-parser.js";
 import { mocGuiCuaTinZalo } from "./zalo-message-timestamp.js";
@@ -53,6 +54,10 @@ export function ghiLogChiDoc(
   }
   void xepHangTheoKhoa(`${accountId}:${msg.threadId}`, async () => {
     const tenThread = await layTenThread(accountId, api, msg, choTenNhom);
+    const { thuMucNgay, gio } = layBoGhiLog().viTriNgay(accountId, msg.sentAt);
+    const tepDaLuu = await taiTep(thuMucNgay, gio, danhSachTepCanTai(msg), {
+      maxBytes: env.CHAT_EXPORT_MAX_FILE_MB * 1024 * 1024,
+    });
     layBoGhiLog().ghiTin({
       accountId,
       threadId: msg.threadId,
@@ -69,6 +74,7 @@ export function ghiLogChiDoc(
       ...(msg.dinhKem ? { dinhKem: msg.dinhKem } : {}),
       ...(msg.trichDan ? { trichDan: msg.trichDan } : {}),
       anh: msg.images.map((i) => i.url),
+      ...(tepDaLuu.length > 0 ? { tepDaLuu } : {}),
     });
   }).catch((err) => log.error({ accountId, threadId: msg.threadId, err }, "Không ghi được log chỉ đọc"));
 }

@@ -95,7 +95,7 @@ describe("BoGhiLogNgay", () => {
     fs.writeFileSync(path.join(goc, "CLAUDE.md"), "bản cũ");
     new BoGhiLogNgay(goc, () => "UTC", () => new Date("2026-10-07T04:30:00Z")).damBaoHuongDan();
     assert.equal(fs.readFileSync(path.join(goc, "_backup", "CLAUDE_261007-1130.md"), "utf8"), "bản cũ");
-    assert.match(fs.readFileSync(path.join(goc, "CLAUDE.md"), "utf8"), /zalo-agent-huong-dan v2/);
+    assert.match(fs.readFileSync(path.join(goc, "CLAUDE.md"), "utf8"), /zalo-agent-huong-dan v3/);
   });
 
   it("hướng dẫn đã đúng phiên bản thì giữ nguyên, không tạo backup", () => {
@@ -136,6 +136,26 @@ describe("BoGhiLogNgay", () => {
     const mucLuc = fs.readFileSync(path.join(goc, "acc", "2026-10-05", "00_muc-luc.md"), "utf8");
     assert.match(mucLuc, /2 cuộc trò chuyện, 3 tin/);
     assert.match(mucLuc, /\| Nhóm Kinh Doanh \| Nhóm \| 2 \| 09:15 \| 10:00 \| Anh B \(1\), Chị C \(1\) \|/);
+  });
+});
+
+describe("BoGhiLogNgay - tệp đã tải", () => {
+  it("ảnh đã lưu thay link Zalo bằng đường dẫn tep/; tải hỏng ghi rõ lý do", () => {
+    const goc = taoThuMuc();
+    new BoGhiLogNgay(goc, () => "Asia/Ho_Chi_Minh").ghiTin(
+      dong({
+        noiDung: "[ảnh]",
+        anh: ["https://zalo/anh.jpg"],
+        tepDaLuu: [
+          { loai: "anh", ten: "anh_m1", duongDan: "tep/0915_anh-m1.jpg" },
+          { loai: "file", ten: "hd.pdf", loi: "vượt quá trần" },
+        ],
+      }),
+    );
+    const md = fs.readFileSync(path.join(goc, "acc", "2026-10-05", "nhom_nhom-kinh-doanh_g123.md"), "utf8");
+    assert.match(md, /  - Đã lưu \(anh\): \[tep\/0915_anh-m1\.jpg\]\(tep\/0915_anh-m1\.jpg\)/);
+    assert.match(md, /  - Không tải được file "hd\.pdf": vượt quá trần/);
+    assert.doesNotMatch(md, /zalo\/anh\.jpg/);
   });
 });
 

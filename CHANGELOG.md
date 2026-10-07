@@ -32,6 +32,9 @@ Bản `0.x` nghĩa là API và cấu hình còn có thể đổi giữa các b�
   Tên file đổi sang `nhom_<ten>_<id>.md` / `rieng_<ten>_<id>.md`, giống nhau mọi ngày; chat riêng do
   chủ tài khoản nhắn trước lấy tên người kia qua `getUserInfo`. `CLAUDE.md` viết lại thành công thức
   tra cứu, có dấu hiệu phiên bản: bản cũ tự chuyển vào `_backup/` khi nâng cấp.
+- **Tải tệp đính kèm về máy** cho log chỉ đọc: ảnh, file, video, tin thoại lưu vào `<ngày>/tep/`
+  ngay khi nhận (link Zalo hết hạn, bản trên máy thì không). Trần mỗi tệp `CHAT_EXPORT_MAX_FILE_MB`
+  (mặc định 100, `0` = tắt), tải qua `downloadFromPublicUrl` (chặn SSRF, cắt ngay khi vượt trần).
 - **Script tự chạy khi đăng nhập Windows** (`scripts/windows/cai-tu-khoi-dong.ps1`, gỡ bằng
   `go-tu-khoi-dong.ps1`): Task Scheduler, chạy ẩn, tự khởi động lại khi chết.
 

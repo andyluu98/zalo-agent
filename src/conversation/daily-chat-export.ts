@@ -50,6 +50,8 @@ export type DongLogTin = {
   dinhKem?: { ten: string; url: string };
   trichDan?: { nguoiGui: string; noiDung: string };
   anh: string[];
+  /** Tệp đã tải về `<ngày>/tep/` (đường dẫn tương đối) hoặc lỗi tải - xem read-only-attachments.ts */
+  tepDaLuu?: { loai: string; ten: string; duongDan?: string; loi?: string }[];
 };
 
 export type SuKienThuHoi = {
@@ -81,6 +83,12 @@ export class BoGhiLogNgay {
     private readonly bayGio: () => Date = () => new Date(),
   ) {
     this.danhBa = new DanhBaLog(thuMucGoc);
+  }
+
+  /** Thư mục ngày + giờ hiển thị của một tin - để tải tệp vào đúng chỗ TRƯỚC khi ghi dòng log */
+  viTriNgay(accountId: string, sentAt: string): { thuMucNgay: string; ngay: string; gio: string } {
+    const { ngay, gio } = this.tachNgayGio(sentAt);
+    return { thuMucNgay: path.join(this.thuMucGoc, sachTen(accountId), ngay), ngay, gio };
   }
 
   /** Tên thread đã nhớ trong danh bạ (rỗng nếu chưa gặp) */
@@ -123,7 +131,12 @@ export class BoGhiLogNgay {
     if (d.dinhKem && (d.dinhKem.ten || d.dinhKem.url)) {
       dong.push(`  - Đính kèm (${d.loaiTin}): ${d.dinhKem.url ? `[${d.dinhKem.ten || "link"}](${d.dinhKem.url})` : d.dinhKem.ten}`);
     }
-    for (const url of d.anh) dong.push(`  - Ảnh: ${url}`);
+    const anhDaLuu = (d.tepDaLuu ?? []).filter((t) => t.loai === "anh" && t.duongDan);
+    if (anhDaLuu.length === 0) for (const url of d.anh) dong.push(`  - Ảnh: ${url}`);
+    for (const t of d.tepDaLuu ?? []) {
+      if (t.duongDan) dong.push(`  - Đã lưu (${t.loai}): [${t.duongDan}](${t.duongDan})`);
+      else dong.push(`  - Không tải được ${t.loai} "${motDong(t.ten)}": ${motDong(t.loi ?? "")}`);
+    }
 
     const fileMd = this.fileMd(thuMucNgay, ngay, d);
     fs.appendFileSync(fileMd, `${dong.join("\n")}\n`, "utf8");

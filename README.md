@@ -224,8 +224,9 @@ khởi động có thể bỏ qua.
 |---|---|
 | Tin chữ, nhiều dòng | nguyên văn, giữ xuống dòng |
 | Tin chính bạn gửi (từ điện thoại / Zalo PC) | ghi là `Tôi (tên)` |
-| Ảnh | `[ảnh]` + link ảnh Zalo |
-| File, video, tin thoại, liên kết | tên + link gốc Zalo (không tải file về) |
+| Ảnh | tải về `<ngày>/tep/`, dòng log trỏ tới bản trên máy |
+| File, video, tin thoại | tải về `<ngày>/tep/` (giữ đuôi gốc), kèm tên + link gốc Zalo |
+| Liên kết web | tên + link (không tải trang web) |
 | Sticker, vị trí | dấu giữ chỗ `[sticker]`, `[vị trí]` |
 | Tin trả lời (trích dẫn) | dòng `> Trả lời **Người A**: nội dung tin gốc` |
 | Tin bị thu hồi | dòng "đã thu hồi một tin", kèm giờ + trích đoạn tin gốc nếu còn nhớ |
@@ -245,7 +246,12 @@ khởi động có thể bỏ qua.
       nhom_kinh-doanh_123456789.md        chat nhóm
       rieng_nguyen-van-a_987654321.md     chat riêng, mang tên người kia
       tin-nhan.jsonl                      mọi tin trong ngày, 1 dòng JSON / tin (có msgId, senderId)
+      tep/                                ảnh, file, video, tin thoại đã tải về (1130_bao-gia.xlsx...)
 ```
+
+Tệp được tải ngay lúc nhận nên không lo link Zalo hết hạn, và Claude mở đọc được thẳng nội dung
+(Word, Excel, PDF, ảnh). Mỗi tệp tối đa `CHAT_EXPORT_MAX_FILE_MB` (mặc định 100 MB, đặt trong `.env`;
+`0` = không tải); vượt trần thì chỉ ghi link kèm lý do.
 
 Tên file của một cuộc trò chuyện **giống nhau ở mọi ngày** (ID ở cuối không đổi), nên tìm
 `rieng_nguyen-van-a_*` là ra toàn bộ lịch sử chat với người đó. Chat riêng mà bạn nhắn trước thì bot
@@ -327,7 +333,8 @@ dừng hẳn thì tắt tiến trình node đang giữ cổng 3900.
 - **Không mở Zalo Web của chính nick đó trên trình duyệt**: Zalo chỉ cho một phiên web, bot và tab
   trình duyệt sẽ đá nhau liên tục. Zalo trên điện thoại dùng bình thường.
 - Tin thu hồi chỉ trích được tin gốc nếu bot nhận tin đó **từ lúc khởi động gần nhất** (nhớ trong RAM).
-- File, ảnh chỉ lưu link của Zalo, không tải bản sao về thư mục log.
+- Tệp lớn hơn `CHAT_EXPORT_MAX_FILE_MB` chỉ được ghi link. Thư mục `tep/` lớn dần theo thời gian,
+  nhớ dọn định kỳ nếu ổ cứng nhỏ.
 - Bật chế độ này thì lịch sử trong DB **không bị cắt** theo `HISTORY_MAX_MESSAGES_PER_THREAD`, DB sẽ
   lớn dần theo thời gian.
 - Log chứa tin nhắn của người khác: giữ trên máy, không đưa lên GitHub hay dịch vụ ngoài.

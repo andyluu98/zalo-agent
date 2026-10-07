@@ -27,6 +27,9 @@ const envSchema = z.object({
   // Rỗng = <DATA_DIR>/exports. Trỏ ra chỗ khác (vd ổ chung với Claude/Antigravity)
   // nếu muốn AI đọc mà không chạm thư mục data chứa cookie.
   CHAT_EXPORT_DIR: z.string().default(""),
+  // Tải tệp đính kèm (ảnh, file, video, tin thoại) của tin chỉ đọc về <ngày>/tep/.
+  // Trần MB mỗi tệp, vượt thì chỉ ghi link. 0 = không tải tệp nào.
+  CHAT_EXPORT_MAX_FILE_MB: z.coerce.number().int().min(0).max(2000).default(100),
 
   LLM_PROVIDER: z.enum(LLM_PROVIDER_KINDS).default("openai-compatible"),
   LLM_BASE_URL: z.preprocess(emptyToUndefined, z.string().startsWith("http").optional()),

@@ -3,7 +3,7 @@
  * log và lọc việc. Đổi nội dung thì tăng số trong DAU_HIEU_HUONG_DAN: bản cũ
  * trên máy người dùng sẽ được chuyển vào `_backup/` và thay bằng bản mới.
  */
-export const DAU_HIEU_HUONG_DAN = "<!-- zalo-agent-huong-dan v2 -->";
+export const DAU_HIEU_HUONG_DAN = "<!-- zalo-agent-huong-dan v3 -->";
 
 export const HUONG_DAN_AI = `${DAU_HIEU_HUONG_DAN}
 # Hướng dẫn tra cứu log Zalo
@@ -24,12 +24,15 @@ lúc nhận. Giờ theo múi giờ của bot (mặc định Asia/Ho_Chi_Minh). M
     nhom_<ten-nhom>_<id>.md     chat nhóm, mỗi cuộc một file
     rieng_<ten-nguoi>_<id>.md   chat riêng, mỗi cuộc một file
     tin-nhan.jsonl        mọi tin trong ngày, một dòng JSON (có msgId, senderId, threadId)
+    tep/                  ảnh, file, video, tin thoại đã tải về (<HHmm>_<ten>.<duoi>)
 \`\`\`
 
 Mỗi tin một dòng \`- HH:mm **Người gửi**: nội dung\`. "Tôi (...)" là chủ tài khoản. Dòng
 \`> Trả lời ...\` là tin được trích dẫn; "đã thu hồi" là tin bị rút lại. Tên file của một cuộc
 trò chuyện GIỐNG NHAU ở mọi thư mục ngày (ID ở cuối không đổi), nên tìm \`*_<id>.md\` là ra mọi ngày.
 Tin tải bù (lỡ lúc bot tắt) nối vào cuối file nên có thể lệch thứ tự giờ.
+Dòng \`- Đã lưu (file): [tep/...](tep/...)\` trỏ tới bản tệp trên máy: mở được trực tiếp (Word,
+Excel, PDF, ảnh) khi cần nội dung, ví dụ đọc báo giá hay hợp đồng được gửi trong chat.
 
 ## Luôn làm trước
 
@@ -45,6 +48,7 @@ nào, log từ đó có thể thiếu). "Lỗi đăng nhập" nghĩa là phải 
 | Nhóm X bàn gì (khoảng ngày) | Tra \`_danh-ba.md\` lấy ID của nhóm, mở \`*/nhom_*_<id>.md\` trong các ngày cần |
 | Người Y nói / giao gì | Tra bảng Người trong \`_danh-ba.md\`: chat riêng (\`rieng_*_<id>.md\`) + các nhóm Y có mặt; tìm dòng \`**Y**\` |
 | Tìm theo từ khóa | Tìm trong \`*/tin-nhan.jsonl\` (nhanh, có threadId để mở đúng file .md) |
+| File / ảnh ai gửi | Tìm dòng \`Đã lưu\` trong file chat, mở tệp trong \`<ngày>/tep/\` |
 | Tên gần đúng / không dấu | Tên file là bản không dấu (vd \`vu-van-hai\`); so cả có dấu lẫn không dấu |
 
 Mọi câu trả lời phải ghi nguồn: tên file + giờ của tin. Không bịa thông tin không có trong log.
