@@ -339,6 +339,18 @@ chính thức). Đổi lại, `tool-registry.ts` **KHÔNG được import thẳn
 sẽ kéo `database.ts` mở SQLite ở module scope, vỡ đúng bẫy test đã ghi ở mục
 "Bẫy khi viết test" trong `CLAUDE.md`.
 
+## Hộp thư đi có duyệt
+
+Tài khoản chỉ đọc gửi tin do người dùng duyệt từng cái (`src/outbox/`). Mỗi tin là một file
+JSON trong `<CHAT_EXPORT_DIR>/hop-thu-di/<accountId>/`, ngoài repo nên không bao giờ vào git.
+
+- Vòng đời: `cho_duyet` -> (`pnpm outbox approve`) `da_duyet` -> `dang_gui` -> `da_gui` | `loi`; `huy` bất cứ lúc nào trước khi gửi.
+- `approve` ghi `banBam` = sha256 nội dung. Bot từ chối tin thiếu/lệch dấu này: ghi tay hay sửa sau duyệt đều không lọt.
+- Ghi `dang_gui` TRƯỚC khi gọi `sendMessage`; gặp `dang_gui` không thuộc tiến trình hiện tại thì chuyển `loi`, không gửi lại (tin có thể đã tới). Lỗi API cũng không tự thử lại.
+- `threadId` phải có trong `danh-ba.json` của log và khớp loại nhóm/riêng.
+- Kích hoạt bằng `fs.watch` (gom sự kiện 800ms), một lượt lúc boot, vòng dự phòng 5 phút. Giới hạn tốc độ tính từ `guiLuc` của file, theo từng account; chạm giới hạn thì hẹn timer, tin vẫn chờ.
+- Chỉ account `readOnly` kênh cá nhân đang chạy. `OUTBOX_ENABLED` mặc định tắt, đọc lại mỗi lượt.
+
 ## Repo tham khảo
 
 Clone shallow (chỉ đọc, không build, không sửa) tại `D:\source-code\zalo-agent-references\` - đặt ngoài project để không dính vào git/pnpm/tsc:

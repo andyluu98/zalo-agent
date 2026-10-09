@@ -3,7 +3,7 @@
  * log và lọc việc. Đổi nội dung thì tăng số trong DAU_HIEU_HUONG_DAN: bản cũ
  * trên máy người dùng sẽ được chuyển vào `_backup/` và thay bằng bản mới.
  */
-export const DAU_HIEU_HUONG_DAN = "<!-- zalo-agent-huong-dan v4 -->";
+export const DAU_HIEU_HUONG_DAN = "<!-- zalo-agent-huong-dan v5 -->";
 
 export const HUONG_DAN_AI = `${DAU_HIEU_HUONG_DAN}
 # Hướng dẫn tra cứu log Zalo
@@ -56,6 +56,27 @@ nào, log từ đó có thể thiếu). "Lỗi đăng nhập" nghĩa là phải 
 | Tên gần đúng / không dấu | Tên file là bản không dấu; so cả có dấu lẫn không dấu |
 
 Mọi câu trả lời phải ghi nguồn: đường dẫn file + giờ của tin. Không bịa thông tin không có trong log.
+
+## Soạn và gửi tin (hộp thư đi có duyệt)
+
+Bot chỉ gửi tin đã được chủ tài khoản duyệt, nằm trong \`hop-thu-di/<accountId>/<id>.json\`.
+Chạy lệnh trong thư mục repo zalo-agent:
+
+| Việc | Lệnh |
+|---|---|
+| Tạo tin chờ duyệt | \`pnpm outbox add --thread <Thread ID> --text "..."\` (nhiều dòng: \`--file <tệp .txt>\`) |
+| Duyệt ĐÚNG một tin | \`pnpm outbox approve <id>\` |
+| Xem / hủy | \`pnpm outbox list\`, \`pnpm outbox show <id>\`, \`pnpm outbox cancel <id>\` |
+
+Quy trình BẮT BUỘC:
+1. Lấy Thread ID trong \`00_danh-ba.md\` (không đoán theo tên). Tạo tin bằng \`add\`.
+2. Hiện NGUYÊN VĂN tin cho chủ tài khoản kèm tên cuộc trò chuyện và id tin.
+3. Chỉ \`approve\` khi chủ tài khoản đồng ý rõ ràng cho ĐÚNG tin đó. Không duyệt gộp nhiều tin
+   bằng một câu "ok"; sửa nội dung thì tạo tin mới và hỏi lại.
+4. Sau vài giây chạy \`pnpm outbox show <id>\`: \`da_gui\` là đã gửi; \`loi\` thì báo lý do, không tự tạo lại.
+
+Tin ghi tay vào thư mục mà không qua \`approve\` sẽ bị từ chối (thiếu dấu duyệt \`banBam\`). Bot giãn
+nhịp và có trần tin mỗi giờ: Zalo cá nhân dùng API không chính thức, không gửi hàng loạt.
 
 ## Lọc việc (báo cáo ngày)
 

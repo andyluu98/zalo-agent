@@ -458,6 +458,10 @@ const envSchema = z.object({
   // Chu kỳ vòng health: dò lại server đang lỗi/mất kết nối để tự phục hồi mà
   // không cần khởi động lại bot.
   MCP_HEALTH_INTERVAL_MS: z.coerce.number().int().min(5000).max(600_000).default(30000),
+  // Hộp thư đi có duyệt (src/outbox/): mặc định TẮT - bật mới gửi tin đã duyệt
+  OUTBOX_ENABLED: z.preprocess(emptyToUndefined, z.stringbool().default(false)),
+  OUTBOX_MIN_GAP_SECONDS: z.coerce.number().int().min(5).max(3600).default(20),
+  OUTBOX_MAX_PER_HOUR: z.coerce.number().int().min(1).max(100).default(20),
 
   // Khóa AES-256 mã hóa cookie Zalo trên đĩa
   CREDENTIALS_ENCRYPTION_KEY: z

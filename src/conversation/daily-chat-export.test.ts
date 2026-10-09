@@ -111,7 +111,7 @@ describe("BoGhiLogNgay", () => {
     fs.writeFileSync(path.join(goc, "CLAUDE.md"), "bản cũ");
     new BoGhiLogNgay(goc, () => "UTC", () => new Date("2026-10-07T04:30:00Z")).damBaoHuongDan();
     assert.equal(fs.readFileSync(path.join(goc, "_backup", "CLAUDE_261007-1130.md"), "utf8"), "bản cũ");
-    assert.match(fs.readFileSync(path.join(goc, "CLAUDE.md"), "utf8"), /zalo-agent-huong-dan v4/);
+    assert.match(fs.readFileSync(path.join(goc, "CLAUDE.md"), "utf8"), /zalo-agent-huong-dan v5/);
   });
 
   it("hướng dẫn đã đúng phiên bản thì giữ nguyên, không tạo backup", () => {

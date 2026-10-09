@@ -5,6 +5,7 @@ import { startMediaCleanupSchedule } from "./conversation/media-store.js";
 import { batDauWorker as batDauKbIngestWorker } from "./knowledge/kb-ingest-worker.js";
 import { batDauNhungNen as batDauKbEmbeddingWorker } from "./knowledge/kb-embedding-worker.js";
 import { startMcpManager } from "./mcp/mcp-manager.js";
+import { startOutboxWatcher } from "./outbox/outbox-watcher.js";
 import { startScheduler, stopScheduler } from "./scheduler/scheduler-loop.js";
 import { startDashboardServer, stopDashboardServer } from "./server/dashboard-server.js";
 import { createLogger } from "./shared/logger.js";
@@ -42,6 +43,7 @@ let stopKbIngestWorker: () => void = () => {};
 let stopKbEmbeddingWorker: () => void = () => {};
 let stopFriendSweep: () => void = () => {};
 let stopMcpManager: () => void = () => {};
+let stopOutbox: () => void = () => {};
 function shutdown(signal: string): void {
   if (shuttingDown) return;
   shuttingDown = true;
@@ -51,6 +53,7 @@ function shutdown(signal: string): void {
   stopKbIngestWorker();
   stopKbEmbeddingWorker();
   stopMcpManager();
+  stopOutbox();
   stopDashboardServer();
   stopAllAccounts();
   closeHistoryStore();
@@ -108,6 +111,8 @@ startAllAccounts()
     // Vòng quét auto-accept kết bạn (tab Bạn bè). Đọc account đang chạy mỗi
     // nhịp nên khởi động sau khi account đã lên.
     stopFriendSweep = startFriendAutoAcceptSweep();
+    // Hộp thư đi có duyệt: cần account đã lên để lấy api. OUTBOX_ENABLED tắt thì mỗi lượt tự bỏ qua.
+    stopOutbox = startOutboxWatcher();
   })
   .catch((err) => {
     logger.fatal({ err }, "Khởi động thất bại");

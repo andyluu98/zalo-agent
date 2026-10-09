@@ -10,6 +10,12 @@ Bản `0.x` nghĩa là API và cấu hình còn có thể đổi giữa các b�
 
 ### Thêm
 
+- **Hộp thư đi có duyệt cho tài khoản chỉ đọc** (`src/outbox/`, `pnpm outbox`). Mỗi tin
+  một file JSON trong `<CHAT_EXPORT_DIR>/hop-thu-di/<accountId>/`; bot chỉ gửi tin
+  `da_duyet` có dấu duyệt `banBam` khớp nội dung, giành bằng `dang_gui` trước khi gửi nên
+  không gửi lặp khi khởi động lại. Theo dõi bằng `fs.watch` + vòng dự phòng 5 phút, không
+  quét liên tục. Giãn nhịp và trần tin/giờ chỉnh trên trang Cấu hình; `OUTBOX_ENABLED`
+  mặc định TẮT. Chỉ văn bản thuần. Hướng dẫn AI trong thư mục log nâng lên v5.
 - **Chế độ chỉ đọc cho tài khoản** (Accounts -> Policies -> "Chế độ chỉ đọc", cột
   `accounts.read_only`). Bot không trả lời, không báo "đã nhận", không gửi lịch hẹn
   (job tới giờ bị bỏ qua, tiêu luôn suất chạy). Mọi tin vẫn được ghi, kể cả sticker,

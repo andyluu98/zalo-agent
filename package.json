@@ -49,6 +49,7 @@
     "dev:web": "vite web",
     "start": "tsx src/index.ts",
     "zalo-login": "tsx scripts/login-account.ts",
+    "outbox": "tsx scripts/outbox.ts",
     "test": "node --import tsx --test --test-timeout=60000 \"src/**/*.test.ts\" \"web/src/**/*.test.ts\" \"evals/**/*.test.ts\"",
     "typecheck": "tsc --noEmit && tsc --noEmit -p web",
     "build": "tsc -p tsconfig.build.json",

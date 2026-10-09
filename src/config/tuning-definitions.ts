@@ -161,6 +161,12 @@ export const TUNING_GROUPS: TuningGroup[] = [
     navHint: "Tool từ server ngoài",
     hint: "Cho agent dùng tool từ các MCP server bên ngoài (chỉ HTTP), gán riêng theo từng agent.",
   },
+  {
+    id: "outbox",
+    title: "Hộp thư đi có duyệt",
+    navHint: "Gửi tin đã duyệt từ nick chỉ đọc",
+    hint: "Nick chỉ đọc gửi các tin đã được duyệt trong thư mục hop-thu-di. zca-js không chính thức: giữ nhịp chậm để giảm rủi ro khóa nick.",
+  },
 ];
 
 const TUNING_BY_KEY = {
@@ -820,6 +826,31 @@ const TUNING_BY_KEY = {
     min: 5000,
     max: 600_000,
     unit: "ms",
+  },
+
+  // --- Hộp thư đi có duyệt ---
+  OUTBOX_ENABLED: {
+    kind: "boolean",
+    group: "outbox",
+    label: "Bật gửi tin đã duyệt",
+    hint: "Bật thì nick chỉ đọc gửi các tin có trạng thái da_duyet trong thư mục hop-thu-di. Tắt thì tin vẫn nằm chờ, không gửi gì.",
+  },
+  OUTBOX_MIN_GAP_SECONDS: {
+    kind: "number",
+    group: "outbox",
+    label: "Khoảng cách tối thiểu giữa 2 tin",
+    hint: "Giãn nhịp gửi cho giống người thật, giảm rủi ro Zalo khóa nick.",
+    min: 5,
+    max: 3600,
+    unit: "giây",
+  },
+  OUTBOX_MAX_PER_HOUR: {
+    kind: "number",
+    group: "outbox",
+    label: "Trần số tin mỗi giờ",
+    hint: "Quá trần thì tin đã duyệt nằm chờ tới khi có suất, không bị bỏ.",
+    min: 1,
+    max: 100,
   },
 } as const satisfies Record<string, TuningDef>;
 
