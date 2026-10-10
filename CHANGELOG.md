@@ -45,6 +45,13 @@ Bản `0.x` nghĩa là API và cấu hình còn có thể đổi giữa các b�
   `CHAT_EXPORT_DAILY_MB_PER_SENDER` (500), 0 = không giới hạn; vượt thì bỏ tải và ghi lý do vào log. Dòng
   tin được ghi TRƯỚC ("Đang tải ..."), tải chạy ở hàng riêng của tài khoản rồi nối thêm khối "Tệp của tin lúc
   HH:MM" (bản ghi jsonl `tep_bo_sung`), nên một lần tải treo/hỏng không còn giữ hàng ghi log của cả nhóm.
+- **Dashboard chống CSRF** (`src/server/csrf-guard.ts`): request ghi (mọi method trừ GET/HEAD/OPTIONS) dưới
+  `/api/*` phải có `Origin` trùng `Host` của dashboard (sau proxy chấp nhận thêm `X-Forwarded-Host` khi
+  `DASHBOARD_BEHIND_PROXY=true`, nginx cần `proxy_set_header Host $host` hoặc gửi `X-Forwarded-Host`), và nếu
+  có `Content-Type` thì phải là `application/json` (ngoại lệ duy nhất: upload multipart của
+  `POST /api/kb/sources/file`, vẫn qua kiểm Origin). Lý do: cookie `SameSite=Lax` không tính cổng, một trang
+  khác trên 127.0.0.1 bị XSS gọi được API bằng phiên của chủ máy. Request không có `Origin` (curl, script) chỉ
+  qua khi không có `Sec-Fetch-Site` cross-site; trình duyệt luôn gửi `Origin` cho request ghi.
 - **Tài khoản chỉ đọc không tự chấp nhận kết bạn**: vòng quét bỏ qua tài khoản `readOnly`; `PATCH
   /api/accounts/:id` trả 400 nếu kết quả có cả `readOnly` và `autoAcceptFriends` cùng bật (cả hai chiều).
 

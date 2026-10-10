@@ -139,7 +139,7 @@ describe("GET /api/schedule", () => {
 
 describe("POST /api/schedule", () => {
   it("chưa login -> 401", async () => {
-    const res = await app.request("/api/schedule", { method: "POST", body: "{}" });
+    const res = await app.request("/api/schedule", { method: "POST", body: "{}", headers: { "content-type": "application/json" } });
     assert.equal(res.status, 401);
   });
 
@@ -242,7 +242,7 @@ describe("POST /api/schedule", () => {
 describe("PATCH /api/schedule/:id", () => {
   it("chưa login -> 401", async () => {
     const job = await taoJob();
-    const res = await app.request(`/api/schedule/${job.id}`, { method: "PATCH", body: "{}" });
+    const res = await app.request(`/api/schedule/${job.id}`, { method: "PATCH", body: "{}", headers: { "content-type": "application/json" } });
     assert.equal(res.status, 401);
   });
 
@@ -358,7 +358,7 @@ describe("DELETE /api/schedule/:id", () => {
 describe("POST /api/schedule/:id/run - Chạy thử ngay", () => {
   it("chưa login -> 401", async () => {
     const job = await taoJob();
-    assert.equal((await app.request(`/api/schedule/${job.id}/run`, { method: "POST", body: "{}" })).status, 401);
+    assert.equal((await app.request(`/api/schedule/${job.id}/run`, { method: "POST", body: "{}", headers: { "content-type": "application/json" } })).status, 401);
   });
 
   it("job của THREAD KHÁC -> 404, không chạy thử được (IDOR)", async () => {

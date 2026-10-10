@@ -9,6 +9,7 @@ import type { CookieOptions } from "hono/utils/cookie";
 import { env } from "../config/env.js";
 import { createLogger } from "../shared/logger.js";
 import { resolveClientIp } from "./client-ip.js";
+import { csrfGuard } from "./csrf-guard.js";
 import {
   allowLoginAttempt,
   checkPassword,
@@ -80,6 +81,9 @@ export function buildDashboardApp(): Hono {
     c.header("Cache-Control", "no-store");
     return c.json({ ok: true });
   });
+
+  // Chống CSRF cho mọi request GHI dưới /api/* (kể cả login/logout), xem csrf-guard.ts
+  app.use("/api/*", csrfGuard);
 
   app.post("/api/auth/login", async (c) => {
     const ip = resolveClientIp(c);
