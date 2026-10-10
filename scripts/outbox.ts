@@ -12,9 +12,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { chatExportDir } from "../src/config/env.js";
+import { chatExportDir, dataDir } from "../src/config/env.js";
 import {
-  bamTin,
+  kyDuyet,
+  laAccountIdHopLe,
+  layHoacTaoKhoa,
   docNguoiTrongDanhBa,
   dungTag,
   kiemTag,
@@ -42,7 +44,10 @@ function thoat(msg: string): never {
 }
 
 function chonAccount(chiDinh: string | undefined): string {
-  if (chiDinh) return chiDinh;
+  if (chiDinh) {
+    if (!laAccountIdHopLe(chiDinh)) thoat(`--account sai: "${chiDinh}" (chỉ chữ thường, số, dấu gạch ngang)`);
+    return chiDinh;
+  }
   const coLog = fs
     .readdirSync(goc, { withFileTypes: true })
     .filter((e) => e.isDirectory() && e.name !== THU_MUC_HOP_THU)
@@ -150,11 +155,13 @@ switch (lenh) {
     if (t.trangThai !== "cho_duyet") thoat(`Tin ${t.id} đang ở trạng thái ${t.trangThai}, chỉ duyệt được cho_duyet`);
     const tepDoi = kiemTepConNguyen(t.tepDinhKem) ?? kiemTag(t);
     if (tepDoi) thoat(`Không duyệt được: ${tepDoi}`);
+    // Khóa HMAC nằm trong DATA_DIR (ngoài vùng log); chưa có thì sinh ở lần duyệt đầu tiên
+    const khoa = layHoacTaoKhoa(dataDir);
     const daDuyet: TinHopThu = {
       ...t,
       trangThai: "da_duyet",
       duyetLuc: new Date().toISOString(),
-      banBam: bamTin(t),
+      banBam: kyDuyet(t, khoa),
     };
     ghiTin(goc, daDuyet);
     console.log("Đã DUYỆT, bot sẽ gửi (nếu đang bật OUTBOX_ENABLED):");

@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { laIdHopLe, THU_MUC_HOP_THU, tinSchema, type TinHopThu } from "./outbox-types.js";
+import { laAccountIdHopLe, laIdHopLe, THU_MUC_HOP_THU, tinSchema, type TinHopThu } from "./outbox-types.js";
 
 /**
  * Hộp thư đi dạng FILE: mỗi tin một file JSON trong
@@ -19,6 +19,7 @@ export * from "./outbox-tag.js";
 export * from "./outbox-signature.js";
 
 export function thuMucHopThu(goc: string, accountId: string): string {
+  if (!laAccountIdHopLe(accountId)) throw new Error(`accountId không hợp lệ: ${accountId}`);
   return path.join(goc, THU_MUC_HOP_THU, accountId);
 }
 
@@ -27,12 +28,16 @@ function duongDan(goc: string, accountId: string, id: string): string {
   return path.join(thuMucHopThu(goc, accountId), `${id}.json`);
 }
 
-/** Đọc một tin; file hỏng/không đúng định dạng thì trả null (không ném) */
+/**
+ * Đọc một tin; file hỏng / sai định dạng thì trả null (không ném). Cũng null khi
+ * `accountId` hoặc `id` TRONG file không khớp thư mục / tên file chứa nó: tin để
+ * ở thư mục A mà khai B thì không được gửi bằng nick B.
+ */
 export function docTin(goc: string, accountId: string, id: string): TinHopThu | null {
   try {
     const raw = JSON.parse(fs.readFileSync(duongDan(goc, accountId, id), "utf8"));
     const kq = tinSchema.safeParse(raw);
-    return kq.success ? kq.data : null;
+    return kq.success && kq.data.accountId === accountId && kq.data.id === id ? kq.data : null;
   } catch {
     return null;
   }
@@ -59,7 +64,7 @@ export function danhSachTin(goc: string, accountId: string): TinHopThu[] {
     const id = t.slice(0, -".json".length);
     if (!laIdHopLe(id)) continue;
     const tin = docTin(goc, accountId, id);
-    if (tin && tin.accountId === accountId && tin.id === id) kq.push(tin);
+    if (tin) kq.push(tin);
   }
   return kq.sort((a, b) => a.taoLuc.localeCompare(b.taoLuc));
 }
@@ -69,7 +74,7 @@ export function danhSachAccountCoHopThu(goc: string): string[] {
   try {
     return fs
       .readdirSync(path.join(goc, THU_MUC_HOP_THU), { withFileTypes: true })
-      .filter((e) => e.isDirectory())
+      .filter((e) => e.isDirectory() && laAccountIdHopLe(e.name))
       .map((e) => e.name);
   } catch {
     return [];

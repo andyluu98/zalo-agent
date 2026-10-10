@@ -7,6 +7,15 @@ export const TRAN_KY_TU = 2000;
 /** Trần tệp đính kèm mỗi tin và dung lượng mỗi tệp */
 export const TRAN_SO_TEP = 10;
 export const TRAN_MB_TEP = 100;
+/** Trần tổng dung lượng tệp của MỘT tin: bot nạp cả tệp vào RAM để băm rồi gửi đúng Buffer đó */
+export const TRAN_TONG_MB_TEP = 300;
+
+/** Giống idSchema của account-routes: kebab-case, không chứa dấu chấm / gạch chéo nên không thoát được khỏi hop-thu-di/ */
+const ACCOUNT_ID_RE = /^[a-z0-9][a-z0-9-]*$/;
+
+export function laAccountIdHopLe(accountId: string): boolean {
+  return ACCOUNT_ID_RE.test(accountId);
+}
 
 export const TRANG_THAI = ["cho_duyet", "da_duyet", "dang_gui", "da_gui", "loi", "huy"] as const;
 export type TrangThaiTin = (typeof TRANG_THAI)[number];
@@ -35,7 +44,7 @@ export type TagTen = z.infer<typeof tagSchema>;
 
 export const tinSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/),
-  accountId: z.string().min(1),
+  accountId: z.string().regex(ACCOUNT_ID_RE),
   threadId: z.string().regex(/^\d+$/),
   loaiCuoc: z.enum(["nhom", "rieng"]),
   tenCuoc: z.string().default(""),

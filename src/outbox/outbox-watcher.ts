@@ -2,12 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { ThreadType } from "zca-js";
 import { getAccount } from "../config/account-store.js";
-import { chatExportDir } from "../config/env.js";
+import { chatExportDir, dataDir } from "../config/env.js";
 import { getTuning } from "../config/runtime-tuning-settings.js";
 import { createLogger } from "../shared/logger.js";
 import { getRunningAccountKenh, getRunningAccounts } from "../zalo/account-manager.js";
 import { danhSachAccountCoHopThu, THU_MUC_HOP_THU } from "./outbox-file-store.js";
 import { xuLyHopThu } from "./outbox-sender.js";
+import { sangNguonZca } from "./outbox-zca-attachments.js";
 
 /**
  * Theo dõi hộp thư đi: KHÔNG quét liên tục. Chạy khi Windows báo có file đổi
@@ -40,6 +41,7 @@ async function motLuot(): Promise<void> {
     const kq = await xuLyHopThu({
       goc: chatExportDir,
       accountId,
+      thuMucKhoa: dataDir,
       cauHinh,
       gui: async (threadId, laNhom, noiDung, tep, tag) => {
         const loai = laNhom ? ThreadType.Group : ThreadType.User;
@@ -49,7 +51,7 @@ async function motLuot(): Promise<void> {
             ? noiDung
             : {
                 msg: noiDung,
-                ...(tep.length > 0 ? { attachments: tep } : {}),
+                ...(tep.length > 0 ? { attachments: sangNguonZca(tep) } : {}),
                 ...(tag.length > 0 ? { mentions: tag.map((x) => ({ pos: x.pos, uid: x.uid, len: x.len })) } : {}),
               };
         const r = await api.sendMessage(tin, threadId, loai);

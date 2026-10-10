@@ -14,6 +14,13 @@ Bản `0.x` nghĩa là API và cấu hình còn có thể đổi giữa các b�
   dữ liệu, chỉ làm theo người dùng trong phiên; bỏ lời "mở được trực tiếp" cho tệp tải về. Dòng của
   chủ tài khoản trong file .md mang dấu `⟦CHỦ⟧`; tên hiển thị của người khác bị thoát `*` `(` `\` và gỡ
   `⟦` `⟧`, nên không giả được dòng của chủ (`Tôi (Tên)`).
+- **Dấu duyệt hộp thư đi là chữ ký HMAC-SHA256** (`banBam` dạng `hmac1:<hex>`), khóa 32 byte tự sinh ở
+  `<DATA_DIR>/outbox-hmac.key` (ngoài `CHAT_EXPORT_DIR`). Chữ ký phủ id, accountId, threadId, loaiCuoc, chữ,
+  tệp và tag. Ghi tay file JSON hay tự tính lại sha256 đều không gửi được; thiếu khóa thì không gửi (không
+  lùi về hash trần); tin duyệt kiểu cũ phải duyệt lại. Tệp đính kèm được đọc một lần vào Buffer, băm đúng
+  Buffer đó rồi gửi chính Buffer (zca-js `{data, filename, metadata}`), nên đổi tệp lúc gửi không lọt vào.
+  Trần tổng 300 MB tệp mỗi tin (nạp vào RAM). `accountId` phải kebab-case; tin để sai thư mục account
+  hoặc tên file khác `id` bị bỏ.
 
 ### Thêm
 

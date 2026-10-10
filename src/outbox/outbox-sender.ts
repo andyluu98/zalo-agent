@@ -1,15 +1,19 @@
 import {
-  bamTin,
+  kiemChuKy,
   kiemTag,
-  kiemTepConNguyen,
+  napTepDaDuyet,
+  type TepGui,
   type TagTen,
   danhSachTin,
+  docKhoa,
   docDanhBa,
   docTin,
   ghiTin,
   TRAN_KY_TU,
   type TinHopThu,
 } from "./outbox-file-store.js";
+import { laTrongThuMuc } from "./outbox-path-guard.js";
+import { TIEN_TO_CHU_KY } from "./outbox-signature.js";
 
 /**
  * Một lượt xử lý hộp thư đi của MỘT account. Chỉ gửi tin `da_duyet`.
@@ -20,12 +24,12 @@ import {
  * thể đã tới nơi. Lỗi từ API cũng vậy: không bao giờ tự thử lại.
  */
 
-/** `tep`: đường dẫn tuyệt đối các tệp đính kèm (rỗng = chỉ gửi chữ) */
+/** `tep`: tệp đã nạp vào RAM và băm xong - gửi chính Buffer này (rỗng = chỉ gửi chữ) */
 export type GuiTinVanBan = (
   threadId: string,
   laNhom: boolean,
   noiDung: string,
-  tep: string[],
+  tep: TepGui[],
   tag: TagTen[],
 ) => Promise<string | undefined>;
 
@@ -51,10 +55,16 @@ function danhLoi(goc: string, tin: TinHopThu, loi: string): void {
   ghiTin(goc, { ...tin, trangThai: "loi", loi });
 }
 
-/** Lý do không được gửi, hoặc null nếu hợp lệ */
-export function kiemTinTruocKhiGui(tin: TinHopThu, danhBa: ReturnType<typeof docDanhBa>): string | null {
-  if (!tin.banBam || tin.banBam !== bamTin(tin)) {
-    return "nội dung hoặc tệp đính kèm đã bị sửa sau khi duyệt (hoặc chưa duyệt qua lệnh approve) - duyệt lại";
+/**
+ * Lý do không được gửi, hoặc null nếu hợp lệ. `khoa` null (thiếu khóa ký) thì
+ * KHÔNG gửi, không lùi về hash trần. Phần tệp kiểm riêng ở `napTepDaDuyet`.
+ */
+export function kiemTinTruocKhiGui(tin: TinHopThu, danhBa: ReturnType<typeof docDanhBa>, khoa: Buffer | null): string | null {
+  if (!khoa) return "thiếu khóa ký duyệt của bot (data/outbox-hmac.key) - duyệt lại bằng pnpm outbox approve";
+  if (!tin.banBam) return "chưa duyệt qua lệnh approve - duyệt lại";
+  if (!tin.banBam.startsWith(TIEN_TO_CHU_KY)) return "tin duyệt kiểu cũ (không có chữ ký HMAC) - duyệt lại";
+  if (!kiemChuKy(tin, khoa)) {
+    return "nội dung hoặc tệp đính kèm đã bị sửa sau khi duyệt (chữ ký duyệt không khớp) - duyệt lại";
   }
   const coTep = (tin.tepDinhKem ?? []).length > 0;
   if (!tin.noiDung.trim() && !coTep) return "nội dung rỗng";
@@ -62,10 +72,7 @@ export function kiemTinTruocKhiGui(tin: TinHopThu, danhBa: ReturnType<typeof doc
   const cuoc = danhBa[tin.threadId];
   if (!cuoc) return "threadId không có trong danh bạ của log";
   if (cuoc.laNhom !== (tin.loaiCuoc === "nhom")) return "loaiCuoc không khớp danh bạ (nhóm/riêng)";
-  const loiTag = kiemTag(tin);
-  if (loiTag) return loiTag;
-  // Đọc lại tệp trên đĩa NGAY trước khi gửi: mã duyệt chỉ chứng minh mô tả tệp không đổi
-  return kiemTepConNguyen(tin.tepDinhKem);
+  return kiemTag(tin);
 }
 
 /** Bao lâu nữa mới được gửi tin kế tiếp (0 = gửi được ngay) */
@@ -89,6 +96,8 @@ export function thoiGianCho(tatCa: TinHopThu[], cauHinh: CauHinhGui, bayGio: num
 export async function xuLyHopThu(opts: {
   goc: string;
   accountId: string;
+  /** Thư mục chứa khóa ký (DATA_DIR) - PHẢI nằm ngoài `goc` */
+  thuMucKhoa: string;
   gui: GuiTinVanBan;
   cauHinh: CauHinhGui;
   bayGio?: () => Date;
@@ -96,6 +105,8 @@ export async function xuLyHopThu(opts: {
   const { goc, accountId, gui, cauHinh } = opts;
   const bayGio = opts.bayGio ?? (() => new Date());
   let daGui = 0;
+  // Khóa nằm trong vùng log (nơi AI khác ghi được) thì coi như không có khóa
+  const khoa = laTrongThuMuc(opts.thuMucKhoa, goc) ? null : docKhoa(opts.thuMucKhoa);
 
   for (const tin of danhSachTin(goc, accountId)) {
     if (tin.trangThai === "dang_gui" && !dangGui.has(tin.id)) {
@@ -111,9 +122,15 @@ export async function xuLyHopThu(opts: {
     const cho = thoiGianCho(tatCa, cauHinh, bayGio().getTime());
     if (cho > 0) return { daGui, henLaiSauMs: cho };
 
-    const lyDo = kiemTinTruocKhiGui(tin, docDanhBa(goc, accountId));
+    const lyDo = kiemTinTruocKhiGui(tin, docDanhBa(goc, accountId), khoa);
     if (lyDo) {
       danhLoi(goc, tin, lyDo);
+      continue;
+    }
+    // Đọc tệp MỘT lần, băm đúng Buffer đó, gửi chính Buffer đó (không để zca-js đọc lại đường dẫn)
+    const nap = await napTepDaDuyet(tin.tepDinhKem);
+    if ("loi" in nap) {
+      danhLoi(goc, tin, nap.loi);
       continue;
     }
 
@@ -130,7 +147,7 @@ export async function xuLyHopThu(opts: {
           daGianh.threadId,
           daGianh.loaiCuoc === "nhom",
           daGianh.noiDung,
-          (daGianh.tepDinhKem ?? []).map((t) => t.duongDan),
+          nap.tep,
           daGianh.nhacTen ?? [],
         );
         ghiTin(goc, {
