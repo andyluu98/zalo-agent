@@ -462,6 +462,11 @@ const envSchema = z.object({
   OUTBOX_ENABLED: z.preprocess(emptyToUndefined, z.stringbool().default(false)),
   OUTBOX_MIN_GAP_SECONDS: z.coerce.number().int().min(5).max(3600).default(20),
   OUTBOX_MAX_PER_HOUR: z.coerce.number().int().min(1).max(100).default(20),
+  // Thư mục GỐC được phép lấy tệp đính kèm cho hộp thư đi, ngăn cách bằng dấu chấm phẩy
+  // (path.delimiter của Windows). Rỗng = mặc định: Downloads, Documents, Desktop của người
+  // dùng hiện tại + CHAT_EXPORT_DIR. Repo, DATA_DIR, .env luôn bị chặn dù nằm trong danh sách này.
+  // Cố ý KHÔNG đưa lên dashboard: đây là ranh giới bảo mật, không phải tham số vận hành.
+  OUTBOX_ATTACH_ALLOWED_DIRS: z.string().default(""),
 
   // Khóa AES-256 mã hóa cookie Zalo trên đĩa
   CREDENTIALS_ENCRYPTION_KEY: z

@@ -21,6 +21,14 @@ Bản `0.x` nghĩa là API và cấu hình còn có thể đổi giữa các b�
   Buffer đó rồi gửi chính Buffer (zca-js `{data, filename, metadata}`), nên đổi tệp lúc gửi không lọt vào.
   Trần tổng 300 MB tệp mỗi tin (nạp vào RAM). `accountId` phải kebab-case; tin để sai thư mục account
   hoặc tên file khác `id` bị bỏ.
+- **Tệp đính kèm hộp thư đi chỉ nhận trong thư mục cho phép**: `OUTBOX_ATTACH_ALLOWED_DIRS` (ngăn cách `;`;
+  rỗng = Downloads, Documents, Desktop của người dùng + `CHAT_EXPORT_DIR`). Đường dẫn được giải symlink /
+  junction (`realpath`) và kiểm lúc `add`, lúc `approve` và ngay trước khi gửi; thư mục repo bot, `DATA_DIR`,
+  tên `.env*`, `credentials.enc`, `*.db` luôn bị chặn dù nằm trong thư mục được phép. Tin lưu đường dẫn
+  thật. Lưu ý: nếu `CHAT_EXPORT_DIR` nằm dưới `DATA_DIR` (mặc định `data/exports`) thì tệp trong đó bị chặn
+  cứng; trỏ log ra ngoài `data/` (như `F:\Zalo-Logs`) để đính kèm từ đó. Băm tệp theo luồng, không còn
+  `readFileSync` chặn event loop. Tool `send_file` của agent cũng giải symlink / junction trong kho
+  `shared-files` và từ chối tệp trỏ ra ngoài kho.
 
 ### Thêm
 

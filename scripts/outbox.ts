@@ -35,8 +35,10 @@ import {
   TRAN_KY_TU,
   type TinHopThu,
 } from "../src/outbox/outbox-file-store.js";
+import { quyDinhTepTuEnv } from "../src/outbox/outbox-attachment-policy.js";
 
 const goc = chatExportDir;
+const quyDinhTep = quyDinhTepTuEnv();
 
 function thoat(msg: string): never {
   console.error(msg);
@@ -103,7 +105,8 @@ switch (lenh) {
     if (duongDanTep.length > TRAN_SO_TEP) thoat(`Tối đa ${TRAN_SO_TEP} tệp mỗi tin`);
     let tepDinhKem;
     try {
-      tepDinhKem = duongDanTep.map(moTaTep);
+      tepDinhKem = [];
+      for (const p of duongDanTep) tepDinhKem.push(await moTaTep(p, quyDinhTep));
     } catch (err) {
       thoat(`Tệp đính kèm không hợp lệ: ${(err as Error).message}`);
     }
@@ -153,7 +156,7 @@ switch (lenh) {
   case "approve": {
     const t = layTin(account, id);
     if (t.trangThai !== "cho_duyet") thoat(`Tin ${t.id} đang ở trạng thái ${t.trangThai}, chỉ duyệt được cho_duyet`);
-    const tepDoi = kiemTepConNguyen(t.tepDinhKem) ?? kiemTag(t);
+    const tepDoi = (await kiemTepConNguyen(t.tepDinhKem, quyDinhTep)) ?? kiemTag(t);
     if (tepDoi) thoat(`Không duyệt được: ${tepDoi}`);
     // Khóa HMAC nằm trong DATA_DIR (ngoài vùng log); chưa có thì sinh ở lần duyệt đầu tiên
     const khoa = layHoacTaoKhoa(dataDir);

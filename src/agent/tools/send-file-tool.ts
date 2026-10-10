@@ -3,6 +3,7 @@ import path from "node:path";
 import { tool } from "ai";
 import { z } from "zod";
 import { dataDir } from "../../config/env.js";
+import { kiemTepTrongThuMuc } from "../../outbox/outbox-path-guard.js";
 import { downloadFromPublicUrl } from "../../shared/safe-remote-download.js";
 import { withTempFile } from "../../shared/temp-file-store.js";
 import type { ToolContext } from "./index.js";
@@ -68,7 +69,15 @@ export function createSendFileTool(ctx: ToolContext) {
         if (!fs.existsSync(filePath)) {
           return ketQuaLoi(`Không có file "${source}" trong kho shared-files`);
         }
-        await sendAttachment(filePath, caption, path.basename(source));
+        // basename chặn `..`, nhưng KHÔNG chặn symlink / junction nằm TRONG kho trỏ ra ngoài
+        // (kho dưới data/ - cạnh cookie và DB): giải đường dẫn thật rồi mới gửi
+        let thuc: string;
+        try {
+          thuc = kiemTepTrongThuMuc(filePath, sharedDir);
+        } catch (err) {
+          return ketQuaLoi(err instanceof Error ? err.message : String(err));
+        }
+        await sendAttachment(thuc, caption, path.basename(source));
         return "Đã gửi file thành công";
       } catch (err) {
         return ketQuaLoi(`Gửi file thất bại: ${err instanceof Error ? err.message : String(err)}`);

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { ghiTin, kyDuyet, layHoacTaoKhoa, type TinHopThu } from "./outbox-file-store.js";
+import { ghiTin, kyDuyet, layHoacTaoKhoa, type QuyDinhTep, type TinHopThu } from "./outbox-file-store.js";
 
 /** Helper dùng chung cho test hộp thư đi (không phải file test, `pnpm test` không chạy nó) */
 
@@ -57,12 +57,13 @@ export function taoMoiTruong() {
   }
 
   /** Tham số chung cho xuLyHopThu */
-  const chung = { goc, accountId: ACC, thuMucKhoa, cauHinh: CAU_HINH };
+  const quyDinhTep: QuyDinhTep = { thuMucDuocPhep: [goc], thuMucChan: [] };
+  const chung = { goc, accountId: ACC, thuMucKhoa, quyDinhTep, cauHinh: CAU_HINH };
 
   function don(): void {
     fs.rmSync(goc, { recursive: true, force: true });
     fs.rmSync(thuMucKhoa, { recursive: true, force: true });
   }
 
-  return { goc, thuMucKhoa, khoa, tin, guiGia, chung, don };
+  return { goc, thuMucKhoa, khoa, quyDinhTep, tin, guiGia, chung, don };
 }

@@ -7,6 +7,7 @@ import { getTuning } from "../config/runtime-tuning-settings.js";
 import { createLogger } from "../shared/logger.js";
 import { getRunningAccountKenh, getRunningAccounts } from "../zalo/account-manager.js";
 import { danhSachAccountCoHopThu, THU_MUC_HOP_THU } from "./outbox-file-store.js";
+import { quyDinhTepTuEnv } from "./outbox-attachment-policy.js";
 import { xuLyHopThu } from "./outbox-sender.js";
 import { sangNguonZca } from "./outbox-zca-attachments.js";
 
@@ -42,6 +43,7 @@ async function motLuot(): Promise<void> {
       goc: chatExportDir,
       accountId,
       thuMucKhoa: dataDir,
+      quyDinhTep: quyDinhTepTuEnv(),
       cauHinh,
       gui: async (threadId, laNhom, noiDung, tep, tag) => {
         const loai = laNhom ? ThreadType.Group : ThreadType.User;

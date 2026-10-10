@@ -16,6 +16,7 @@ import { laAccountIdHopLe, laIdHopLe, THU_MUC_HOP_THU, tinSchema, type TinHopThu
 export * from "./outbox-types.js";
 export * from "./outbox-attachment.js";
 export * from "./outbox-tag.js";
+export * from "./outbox-path-guard.js";
 export * from "./outbox-signature.js";
 
 export function thuMucHopThu(goc: string, accountId: string): string {

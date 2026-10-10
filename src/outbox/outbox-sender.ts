@@ -12,7 +12,7 @@ import {
   TRAN_KY_TU,
   type TinHopThu,
 } from "./outbox-file-store.js";
-import { laTrongThuMuc } from "./outbox-path-guard.js";
+import { laTrongThuMuc, type QuyDinhTep } from "./outbox-path-guard.js";
 import { TIEN_TO_CHU_KY } from "./outbox-signature.js";
 
 /**
@@ -98,6 +98,8 @@ export async function xuLyHopThu(opts: {
   accountId: string;
   /** Thư mục chứa khóa ký (DATA_DIR) - PHẢI nằm ngoài `goc` */
   thuMucKhoa: string;
+  /** Thư mục được phép / bị chặn cho tệp đính kèm - kiểm lại ngay trước khi gửi */
+  quyDinhTep: QuyDinhTep;
   gui: GuiTinVanBan;
   cauHinh: CauHinhGui;
   bayGio?: () => Date;
@@ -128,7 +130,7 @@ export async function xuLyHopThu(opts: {
       continue;
     }
     // Đọc tệp MỘT lần, băm đúng Buffer đó, gửi chính Buffer đó (không để zca-js đọc lại đường dẫn)
-    const nap = await napTepDaDuyet(tin.tepDinhKem);
+    const nap = await napTepDaDuyet(tin.tepDinhKem, opts.quyDinhTep);
     if ("loi" in nap) {
       danhLoi(goc, tin, nap.loi);
       continue;
