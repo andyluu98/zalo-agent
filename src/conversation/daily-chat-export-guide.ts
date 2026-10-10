@@ -3,7 +3,7 @@
  * log và lọc việc. Đổi nội dung thì tăng số trong DAU_HIEU_HUONG_DAN: bản cũ
  * trên máy người dùng sẽ được chuyển vào `_backup/` và thay bằng bản mới.
  */
-export const DAU_HIEU_HUONG_DAN = "<!-- zalo-agent-huong-dan v6 -->";
+export const DAU_HIEU_HUONG_DAN = "<!-- zalo-agent-huong-dan v7 -->";
 
 export const HUONG_DAN_AI = `${DAU_HIEU_HUONG_DAN}
 # Hướng dẫn tra cứu log Zalo
@@ -66,6 +66,7 @@ Chạy lệnh trong thư mục repo zalo-agent:
 |---|---|
 | Tạo tin chờ duyệt | \`pnpm outbox add --thread <Thread ID> --text "..."\` (nhiều dòng: \`--file <tệp .txt>\`) |
 | Kèm tệp trên máy | thêm \`--attach "<đường dẫn tuyệt đối>"\`, lặp lại cho nhiều tệp (tối đa 10, mỗi tệp 100 MB); có tệp thì được bỏ trống chữ |
+| Tag người (chỉ nhóm) | thêm \`--mention <uid>\` (uid ở bảng Người của \`00_danh-ba.md\`), \`--mention <uid>=<Tên>\` khi người đó chưa có trong bảng, \`--mention all\` để tag tất cả. Chữ chưa có \`@Tên\` thì tự chèn ở đầu tin |
 | Duyệt ĐÚNG một tin | \`pnpm outbox approve <id>\` |
 | Xem / hủy | \`pnpm outbox list\`, \`pnpm outbox show <id>\`, \`pnpm outbox cancel <id>\` |
 

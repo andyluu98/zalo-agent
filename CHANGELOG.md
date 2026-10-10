@@ -10,6 +10,9 @@ Bản `0.x` nghĩa là API và cấu hình còn có thể đổi giữa các b�
 
 ### Thêm
 
+- **Tag tên (@người) cho hộp thư đi**: `--mention <uid>` / `<uid>=<Tên>` / `all` (chỉ tin nhóm, tối đa 20).
+  Chưa có `@Tên` trong chữ thì tự chèn ở đầu tin; vị trí tag nằm trong mã duyệt, sửa chữ sau khi duyệt thì không gửi.
+
 - **Đính kèm tệp cho hộp thư đi**: `pnpm outbox add ... --attach <tệp>` (lặp được, tối đa 10 tệp, mỗi tệp
   100 MB, đường dẫn tuyệt đối). Mã duyệt tính trên cả chữ lẫn tệp; tệp bị sửa / thay / xóa sau khi
   duyệt thì không gửi. Tin không tệp giữ nguyên mã duyệt cũ. Gửi bằng một lời gọi `sendMessage({ msg, attachments })`.

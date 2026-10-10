@@ -2,6 +2,7 @@
 // Cách dùng:
 //   pnpm outbox add --thread <threadId> --text "..."   (hoặc --file <đường dẫn .txt>)
 //                   [--attach <đường dẫn tệp>]...     đính kèm tệp, lặp lại cho nhiều tệp
+//                   [--mention <uid>|<uid>=<Tên>|all]...  tag người trong NHÓM (uid ở bảng Người, 00_danh-ba.md)
 //   pnpm outbox approve <id>      duyệt ĐÚNG một tin (in lại nguyên văn)
 //   pnpm outbox cancel <id>
 //   pnpm outbox show <id>
@@ -14,9 +15,14 @@ import { parseArgs } from "node:util";
 import { chatExportDir } from "../src/config/env.js";
 import {
   bamTin,
+  docNguoiTrongDanhBa,
+  dungTag,
+  kiemTag,
   kiemTepConNguyen,
   moTaTep,
+  TRAN_SO_TAG,
   TRAN_SO_TEP,
+  UID_TAG_TAT_CA,
   danhSachTin,
   docDanhBa,
   docTin,
@@ -50,6 +56,9 @@ function inTin(t: TinHopThu): void {
   console.log(`id:        ${t.id}`);
   console.log(`trạng thái: ${t.trangThai}${t.loi ? ` (${t.loi})` : ""}`);
   console.log(`gửi tới:   ${t.tenCuoc} [${t.loaiCuoc}] threadId ${t.threadId}`);
+  for (const x of t.nhacTen ?? []) {
+    console.log(`tag:       ${t.noiDung.slice(x.pos, x.pos + x.len)} (uid ${x.uid})`);
+  }
   for (const f of t.tepDinhKem ?? []) {
     console.log(`đính kèm:  ${f.duongDan} (${(f.kichThuoc / 1024 / 1024).toFixed(2)} MB)`);
   }
@@ -73,6 +82,7 @@ const { values, positionals } = parseArgs({
     thread: { type: "string" },
     text: { type: "string" },
     file: { type: "string" },
+    mention: { type: "string", multiple: true },
     attach: { type: "string", multiple: true },
     all: { type: "boolean", default: false },
   },
@@ -93,9 +103,30 @@ switch (lenh) {
       thoat(`Tệp đính kèm không hợp lệ: ${(err as Error).message}`);
     }
     if (!noiDung?.trim() && tepDinhKem.length === 0) thoat("Thiếu --text / --file, hoặc --attach");
-    if ((noiDung ?? "").length > TRAN_KY_TU) thoat(`Nội dung dài quá ${TRAN_KY_TU} ký tự`);
     const cuoc = docDanhBa(goc, account)[threadId];
     if (!cuoc) thoat(`threadId ${threadId} không có trong danh bạ log của ${account}`);
+    let chu = noiDung ?? "";
+    let nhacTen;
+    const yeuCauTag = values.mention ?? [];
+    if (yeuCauTag.length > 0) {
+      if (!cuoc.laNhom) thoat("Chỉ tag được trong tin nhóm");
+      if (yeuCauTag.length > TRAN_SO_TAG) thoat(`Tối đa ${TRAN_SO_TAG} người được tag mỗi tin`);
+      const danhBaNguoi = docNguoiTrongDanhBa(goc, account);
+      const nguoi = yeuCauTag.map((m) => {
+        if (m.toLowerCase() === "all") return { uid: UID_TAG_TAT_CA, ten: "All" };
+        const [uid = "", tenTay] = m.split("=");
+        if (!/^\d+$/.test(uid)) thoat(`--mention sai: "${m}" (cần <uid>, <uid>=<Tên> hoặc all)`);
+        const ten = tenTay?.trim() || danhBaNguoi[uid];
+        if (!ten) thoat(`uid ${uid} chưa có trong bảng Người của danh bạ - dùng --mention ${uid}=<Tên hiển thị>`);
+        return { uid, ten };
+      });
+      try {
+        ({ noiDung: chu, nhacTen } = dungTag(chu, nguoi));
+      } catch (err) {
+        thoat(`Không dựng được tag: ${(err as Error).message}`);
+      }
+    }
+    if (chu.length > TRAN_KY_TU) thoat(`Nội dung dài quá ${TRAN_KY_TU} ký tự`);
     const bayGio = new Date();
     const tin: TinHopThu = {
       id: taoIdTin(bayGio),
@@ -103,8 +134,9 @@ switch (lenh) {
       threadId,
       loaiCuoc: cuoc.laNhom ? "nhom" : "rieng",
       tenCuoc: cuoc.ten,
-      noiDung: noiDung ?? "",
+      noiDung: chu,
       ...(tepDinhKem.length > 0 ? { tepDinhKem } : {}),
+      ...(nhacTen && nhacTen.length > 0 ? { nhacTen } : {}),
       trangThai: "cho_duyet",
       taoLuc: bayGio.toISOString(),
     };
@@ -116,7 +148,7 @@ switch (lenh) {
   case "approve": {
     const t = layTin(account, id);
     if (t.trangThai !== "cho_duyet") thoat(`Tin ${t.id} đang ở trạng thái ${t.trangThai}, chỉ duyệt được cho_duyet`);
-    const tepDoi = kiemTepConNguyen(t.tepDinhKem);
+    const tepDoi = kiemTepConNguyen(t.tepDinhKem) ?? kiemTag(t);
     if (tepDoi) thoat(`Không duyệt được: ${tepDoi}`);
     const daDuyet: TinHopThu = {
       ...t,

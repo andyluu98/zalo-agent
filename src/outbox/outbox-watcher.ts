@@ -41,10 +41,18 @@ async function motLuot(): Promise<void> {
       goc: chatExportDir,
       accountId,
       cauHinh,
-      gui: async (threadId, laNhom, noiDung, tep) => {
+      gui: async (threadId, laNhom, noiDung, tep, tag) => {
         const loai = laNhom ? ThreadType.Group : ThreadType.User;
-        // Có tệp: một lời gọi gửi cả chữ (làm chú thích) lẫn tệp, giống công cụ send_file
-        const r = await api.sendMessage(tep.length > 0 ? { msg: noiDung, attachments: tep } : noiDung, threadId, loai);
+        // Một lời gọi gửi cả chữ, tag (@người) và tệp, giống công cụ send_file / tag_member
+        const tin =
+          tep.length === 0 && tag.length === 0
+            ? noiDung
+            : {
+                msg: noiDung,
+                ...(tep.length > 0 ? { attachments: tep } : {}),
+                ...(tag.length > 0 ? { mentions: tag.map((x) => ({ pos: x.pos, uid: x.uid, len: x.len })) } : {}),
+              };
+        const r = await api.sendMessage(tin, threadId, loai);
         const id = r?.message?.msgId ?? r?.attachment?.[0]?.msgId;
         return id === undefined || id === null ? undefined : String(id);
       },

@@ -29,6 +29,19 @@ const tepSchema = z.object({
 });
 export type TepDinhKem = z.infer<typeof tepSchema>;
 
+/** Trần số người được tag trong một tin */
+export const TRAN_SO_TAG = 20;
+/** uid đặc biệt của zca-js nghĩa là tag tất cả (@All) */
+export const UID_TAG_TAT_CA = "-1";
+
+const tagSchema = z.object({
+  uid: z.string().regex(/^(-1|\d+)$/),
+  /** Vị trí ký tự (UTF-16, đúng cách zca-js đếm) của "@Tên" trong noiDung */
+  pos: z.number().int().nonnegative(),
+  len: z.number().int().positive(),
+});
+export type TagTen = z.infer<typeof tagSchema>;
+
 const tinSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/),
   accountId: z.string().min(1),
@@ -37,6 +50,7 @@ const tinSchema = z.object({
   tenCuoc: z.string().default(""),
   noiDung: z.string(),
   tepDinhKem: z.array(tepSchema).max(TRAN_SO_TEP).optional(),
+  nhacTen: z.array(tagSchema).max(TRAN_SO_TAG).optional(),
   trangThai: z.enum(TRANG_THAI),
   taoLuc: z.string(),
   duyetLuc: z.string().optional(),
@@ -94,11 +108,65 @@ export function kiemTepConNguyen(tep: TepDinhKem[] | undefined): string | null {
  * Mã duyệt của cả tin. Tin không có tệp ra ĐÚNG `bamNoiDung` như trước, nên
  * các tin đã duyệt / đã gửi từ bản cũ vẫn hợp lệ.
  */
-export function bamTin(t: Pick<TinHopThu, "noiDung" | "tepDinhKem">): string {
+export function bamTin(t: Pick<TinHopThu, "noiDung" | "tepDinhKem" | "nhacTen">): string {
   const tep = t.tepDinhKem ?? [];
-  if (tep.length === 0) return bamNoiDung(t.noiDung);
-  const phan = [t.noiDung, ...tep.map((x) => `${x.duongDan}|${x.kichThuoc}|${x.bam}`)];
+  const tag = t.nhacTen ?? [];
+  if (tep.length === 0 && tag.length === 0) return bamNoiDung(t.noiDung);
+  const phan = [
+    t.noiDung,
+    ...tep.map((x) => `${x.duongDan}|${x.kichThuoc}|${x.bam}`),
+    ...tag.map((x) => `@${x.uid}|${x.pos}|${x.len}`),
+  ];
   return crypto.createHash("sha256").update(phan.join("\u0000"), "utf8").digest("hex");
+}
+
+/** Tag có hợp lệ với nội dung không; null = hợp lệ, chuỗi = lý do */
+export function kiemTag(t: Pick<TinHopThu, "noiDung" | "nhacTen" | "loaiCuoc">): string | null {
+  const tag = t.nhacTen ?? [];
+  if (tag.length === 0) return null;
+  if (t.loaiCuoc !== "nhom") return "chỉ tag được trong tin nhóm";
+  for (const x of tag) {
+    if (x.pos + x.len > t.noiDung.length || t.noiDung[x.pos] !== "@") {
+      return `vị trí tag không khớp nội dung (uid ${x.uid}) - tạo lại tin`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Dựng danh sách tag từ (uid, tên): tìm "@Tên" trong nội dung (lần xuất hiện kế
+ * tiếp chưa dùng); không có thì chèn "@Tên " vào đầu tin. Trả nội dung mới + tag.
+ */
+export function dungTag(noiDung: string, nguoi: { uid: string; ten: string }[]): { noiDung: string; nhacTen: TagTen[] } {
+  let chu = noiDung;
+  const chen: string[] = [];
+  for (const n of nguoi) if (!chu.includes(`@${n.ten}`)) chen.push(`@${n.ten}`);
+  if (chen.length > 0) chu = `${chen.join(" ")} ${chu}`.trimEnd();
+  const daDung = new Set<number>();
+  const nhacTen: TagTen[] = [];
+  for (const n of nguoi) {
+    const nhan = `@${n.ten}`;
+    let pos = chu.indexOf(nhan);
+    while (pos >= 0 && daDung.has(pos)) pos = chu.indexOf(nhan, pos + 1);
+    if (pos < 0) throw new Error(`không tìm thấy "${nhan}" trong nội dung`);
+    daDung.add(pos);
+    nhacTen.push({ uid: n.uid, pos, len: nhan.length });
+  }
+  return { noiDung: chu, nhacTen };
+}
+
+/** Bảng Người trong danh bạ log: uid -> tên hiển thị */
+export function docNguoiTrongDanhBa(goc: string, accountId: string): Record<string, string> {
+  try {
+    const raw = JSON.parse(fs.readFileSync(path.join(goc, accountId, "_du-lieu", "danh-ba.json"), "utf8"));
+    const kq: Record<string, string> = {};
+    for (const [uid, v] of Object.entries((raw?.nguoi ?? {}) as Record<string, { ten?: unknown }>)) {
+      if (v?.ten) kq[uid] = String(v.ten);
+    }
+    return kq;
+  } catch {
+    return {};
+  }
 }
 
 export function laIdHopLe(id: string): boolean {

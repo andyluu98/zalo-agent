@@ -1,6 +1,8 @@
 import {
   bamTin,
+  kiemTag,
   kiemTepConNguyen,
+  type TagTen,
   danhSachTin,
   docDanhBa,
   docTin,
@@ -24,6 +26,7 @@ export type GuiTinVanBan = (
   laNhom: boolean,
   noiDung: string,
   tep: string[],
+  tag: TagTen[],
 ) => Promise<string | undefined>;
 
 export type CauHinhGui = {
@@ -59,6 +62,8 @@ export function kiemTinTruocKhiGui(tin: TinHopThu, danhBa: ReturnType<typeof doc
   const cuoc = danhBa[tin.threadId];
   if (!cuoc) return "threadId không có trong danh bạ của log";
   if (cuoc.laNhom !== (tin.loaiCuoc === "nhom")) return "loaiCuoc không khớp danh bạ (nhóm/riêng)";
+  const loiTag = kiemTag(tin);
+  if (loiTag) return loiTag;
   // Đọc lại tệp trên đĩa NGAY trước khi gửi: mã duyệt chỉ chứng minh mô tả tệp không đổi
   return kiemTepConNguyen(tin.tepDinhKem);
 }
@@ -126,6 +131,7 @@ export async function xuLyHopThu(opts: {
           daGianh.loaiCuoc === "nhom",
           daGianh.noiDung,
           (daGianh.tepDinhKem ?? []).map((t) => t.duongDan),
+          daGianh.nhacTen ?? [],
         );
         ghiTin(goc, {
           ...daGianh,
