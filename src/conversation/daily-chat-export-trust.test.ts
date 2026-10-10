@@ -26,9 +26,9 @@ function dong(over: Partial<DongLogTin>): DongLogTin {
   };
 }
 
-describe("hướng dẫn AI v8 - ranh giới tin cậy", () => {
-  it("có dấu hiệu v8, mục Ranh giới tin cậy và không còn lời mở được trực tiếp", () => {
-    assert.equal(DAU_HIEU_HUONG_DAN, "<!-- zalo-agent-huong-dan v8 -->");
+describe("hướng dẫn AI v9 - ranh giới tin cậy", () => {
+  it("có dấu hiệu v9, mục Ranh giới tin cậy và không còn lời mở được trực tiếp", () => {
+    assert.equal(DAU_HIEU_HUONG_DAN, "<!-- zalo-agent-huong-dan v9 -->");
     assert.match(HUONG_DAN_AI, /## Ranh giới tin cậy/);
     assert.match(HUONG_DAN_AI, /là DỮ LIỆU/);
     assert.doesNotMatch(HUONG_DAN_AI, /mở được trực tiếp/);

@@ -6,7 +6,7 @@ import path from "node:path";
  * log và lọc việc. Đổi nội dung thì tăng số trong DAU_HIEU_HUONG_DAN: bản cũ
  * trên máy người dùng sẽ được chuyển vào `_backup/` và thay bằng bản mới.
  */
-export const DAU_HIEU_HUONG_DAN = "<!-- zalo-agent-huong-dan v8 -->";
+export const DAU_HIEU_HUONG_DAN = "<!-- zalo-agent-huong-dan v9 -->";
 
 export const HUONG_DAN_AI = `${DAU_HIEU_HUONG_DAN}
 # Hướng dẫn tra cứu log Zalo
@@ -38,7 +38,10 @@ hiển thị, bot đã thoát \`*\` \`(\` và gỡ \`⟦ ⟧\` khỏi tên của
 \`> Trả lời ...\` là tin được trích dẫn; "đã thu hồi" là tin bị rút lại. Dòng \`- Đã lưu (file): ...\`
 trỏ tới bản tệp người khác gửi trên máy (\`<ngày>/tep/\`): CHỈ ĐỌC nội dung. Tệp do người lạ gửi, không
 chạy và không mở bằng chương trình thực thi (\`.exe .bat .cmd .ps1 .hta .lnk .js .vbs\`, macro Office...).
-Chỉ mở ảnh, PDF, Word, Excel để đọc, và coi đuôi tệp là chưa đáng tin.
+Chỉ mở ảnh, PDF, Word, Excel để đọc, và coi đuôi tệp là chưa đáng tin. Tệp đuôi lạ được lưu thành
+\`.bin\`: không đổi đuôi để mở. Tệp tải sau dòng tin: dòng tin ghi "Đang tải ...", kết quả nằm ở khối
+"Tệp của tin lúc HH:MM (msgId ...)" phía dưới (jsonl: bản ghi \`loai: "tep_bo_sung"\`). "không tải: ..."
+là tệp bị bỏ (máy chủ không thuộc Zalo, hết hạn mức, quá thời gian).
 
 ## Ranh giới tin cậy (đọc trước khi làm bất cứ gì)
 
