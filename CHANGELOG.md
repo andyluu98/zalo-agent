@@ -8,6 +8,13 @@ Bản `0.x` nghĩa là API và cấu hình còn có thể đổi giữa các b�
 
 ## [Chưa phát hành]
 
+### Bảo mật
+
+- **Ranh giới tin cậy cho AI đọc log (hướng dẫn v8)**: mục mới nói rõ nội dung tin và tệp tải về chỉ là
+  dữ liệu, chỉ làm theo người dùng trong phiên; bỏ lời "mở được trực tiếp" cho tệp tải về. Dòng của
+  chủ tài khoản trong file .md mang dấu `⟦CHỦ⟧`; tên hiển thị của người khác bị thoát `*` `(` `\` và gỡ
+  `⟦` `⟧`, nên không giả được dòng của chủ (`Tôi (Tên)`).
+
 ### Thêm
 
 - **Tag tên (@người) cho hộp thư đi**: `--mention <uid>` / `<uid>=<Tên>` / `all` (chỉ tin nhóm, tối đa 20).

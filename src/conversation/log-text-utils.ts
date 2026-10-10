@@ -22,6 +22,19 @@ export function motDong(s: string): string {
   return s.replace(/\s+/g, " ").trim();
 }
 
+/** Dấu đứng trước "Tôi" trên dòng của chủ tài khoản; tên người khác bị gỡ hai ký tự này nên không giả được */
+export const DAU_CHU_TAI_KHOAN = "⟦CHỦ⟧";
+
+/**
+ * Tên người gửi để in vào file .md. Tên hiển thị do người gửi tự đặt nên:
+ * thoát `*` và `(` (không đóng được chữ đậm, không dựng được dạng "Tôi (...)") và
+ * gỡ `⟦` `⟧` (không gõ ra được dấu của chủ tài khoản). Chỉ tin của chính chủ mới có dấu.
+ */
+export function tenNguoiGuiAnToan(ten: string, laToi: boolean): string {
+  const sach = motDong(ten.replace(/[⟦⟧]/g, "")).replace(/([*(\\])/g, "\\$1");
+  return laToi ? `${DAU_CHU_TAI_KHOAN} Tôi (${sach})` : sach;
+}
+
 export function catNgan(s: string, toiDa: number): string {
   const g = motDong(s);
   return g.length > toiDa ? `${g.slice(0, toiDa)}...` : g;

@@ -4,7 +4,7 @@ import { DateTime, IANAZone } from "luxon";
 import { DanhBaLog } from "./danh-ba-log.js";
 import { DAU_HIEU_HUONG_DAN, HUONG_DAN_AI } from "./daily-chat-export-guide.js";
 import { DuongDanLog } from "./log-paths.js";
-import { catNgan, chonTenFileThread, motDong } from "./log-text-utils.js";
+import { catNgan, chonTenFileThread, motDong, tenNguoiGuiAnToan } from "./log-text-utils.js";
 import { MucLucNgay } from "./muc-luc-ngay.js";
 
 /**
@@ -109,13 +109,13 @@ export class BoGhiLogNgay {
 
   ghiTin(d: DongLogTin): void {
     const { ngay, gio } = this.tachNgayGio(d.sentAt);
-    const nguoiGui = d.laToi ? `Tôi (${d.senderName})` : d.senderName;
+    const nguoiGui = tenNguoiGuiAnToan(d.senderName, d.laToi);
     const dong: string[] = [];
     const [dau = "", ...sau] = d.noiDung.split(/\r?\n/);
-    dong.push(`- ${gio} **${motDong(nguoiGui)}**: ${dau}`);
+    dong.push(`- ${gio} **${nguoiGui}**: ${dau}`);
     for (const l of sau) dong.push(`  ${l}`);
     if (d.trichDan) {
-      dong.push(`  > Trả lời **${motDong(d.trichDan.nguoiGui) || "?"}**: ${catNgan(d.trichDan.noiDung, 200)}`);
+      dong.push(`  > Trả lời **${tenNguoiGuiAnToan(d.trichDan.nguoiGui, false) || "?"}**: ${catNgan(d.trichDan.noiDung, 200)}`);
     }
     if (d.dinhKem && (d.dinhKem.ten || d.dinhKem.url)) {
       // Tiêu đề link chia sẻ có thể nhiều dòng - ép một dòng, cắt ngắn để không vỡ markdown
@@ -148,12 +148,12 @@ export class BoGhiLogNgay {
   ghiThuHoi(e: SuKienThuHoi): void {
     const { ngay, gio } = this.tachNgayGio(e.sentAt);
     const goc = this.tinGanDay.get(e.msgIdGoc);
-    const nguoiGui = e.laToi ? `Tôi (${e.senderName})` : e.senderName;
+    const nguoiGui = tenNguoiGuiAnToan(e.senderName, e.laToi);
     const chiTiet = goc ? ` (tin lúc ${goc.gio}: "${goc.trich}")` : "";
     const file = this.fileMd(ngay, e);
     fs.appendFileSync(
       path.join(this.duongDan.ngay(e.accountId, ngay), file),
-      `- ${gio} **${motDong(nguoiGui)}** đã thu hồi một tin${chiTiet}\n`,
+      `- ${gio} **${nguoiGui}** đã thu hồi một tin${chiTiet}\n`,
       "utf8",
     );
     this.ghiJsonl(e.accountId, ngay, { loai: "thu_hoi", ngay, gio, ...e });

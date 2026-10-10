@@ -100,10 +100,10 @@ describe("BoGhiLogNgay", () => {
       msgIdGoc: "m1",
     });
     const md = docFile(goc, "nhom/nhom-kinh-doanh.md");
-    assert.match(md, /\*\*Tôi \(Andy\)\*\*: ok anh\n  chiều em gửi/);
+    assert.match(md, /\*\*⟦CHỦ⟧ Tôi \(Andy\)\*\*: ok anh\n  chiều em gửi/);
     assert.match(md, /  > Trả lời \*\*Anh B\*\*: Gửi báo giá/);
     assert.match(md, /  - Đính kèm \(file\): \[bao-gia.xlsx\]\(https:\/\/f\/x\)/);
-    assert.match(md, /- 09:20 \*\*Tôi \(Andy\)\*\* đã thu hồi một tin \(tin lúc 09:15: "ok anh chiều em gửi"\)/);
+    assert.match(md, /- 09:20 \*\*⟦CHỦ⟧ Tôi \(Andy\)\*\* đã thu hồi một tin \(tin lúc 09:15: "ok anh chiều em gửi"\)/);
   });
 
   it("hướng dẫn cũ (không có dấu hiệu phiên bản) được CHUYỂN vào _backup rồi thay bản mới", () => {
@@ -111,7 +111,7 @@ describe("BoGhiLogNgay", () => {
     fs.writeFileSync(path.join(goc, "CLAUDE.md"), "bản cũ");
     new BoGhiLogNgay(goc, () => "UTC", () => new Date("2026-10-07T04:30:00Z")).damBaoHuongDan();
     assert.equal(fs.readFileSync(path.join(goc, "_backup", "CLAUDE_261007-1130.md"), "utf8"), "bản cũ");
-    assert.match(fs.readFileSync(path.join(goc, "CLAUDE.md"), "utf8"), /zalo-agent-huong-dan v7/);
+    assert.match(fs.readFileSync(path.join(goc, "CLAUDE.md"), "utf8"), /zalo-agent-huong-dan v8/);
   });
 
   it("hướng dẫn đã đúng phiên bản thì giữ nguyên, không tạo backup", () => {
