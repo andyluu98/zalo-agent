@@ -14,36 +14,26 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import { chatExportDir, dataDir } from "../src/config/env.js";
 import {
+  bamTin,
   kyDuyet,
   laAccountIdHopLe,
   layHoacTaoKhoa,
-  docNguoiTrongDanhBa,
-  dungTag,
   kiemTag,
   kiemTepConNguyen,
-  moTaTep,
-  TRAN_SO_TAG,
-  TRAN_SO_TEP,
-  UID_TAG_TAT_CA,
   danhSachTin,
-  docDanhBa,
   docTin,
-  ghiTin,
   laIdHopLe,
-  taoIdTin,
   THU_MUC_HOP_THU,
-  TRAN_KY_TU,
   type TinHopThu,
 } from "../src/outbox/outbox-file-store.js";
+import { doiTrangThai } from "../src/outbox/outbox-transaction.js";
 import { quyDinhTepTuEnv } from "../src/outbox/outbox-attachment-policy.js";
+import { lenhAdd } from "./outbox-lenh-add.js";
+import { inTin, thoat } from "./outbox-hien-thi.js";
 
 const goc = chatExportDir;
 const quyDinhTep = quyDinhTepTuEnv();
 
-function thoat(msg: string): never {
-  console.error(msg);
-  process.exit(1);
-}
 
 function chonAccount(chiDinh: string | undefined): string {
   if (chiDinh) {
@@ -59,21 +49,6 @@ function chonAccount(chiDinh: string | undefined): string {
   thoat(`Cần --account <id>. Các account có log: ${coLog.join(", ") || "(không có)"}`);
 }
 
-function inTin(t: TinHopThu): void {
-  console.log(`id:        ${t.id}`);
-  console.log(`trạng thái: ${t.trangThai}${t.loi ? ` (${t.loi})` : ""}`);
-  console.log(`gửi tới:   ${t.tenCuoc} [${t.loaiCuoc}] threadId ${t.threadId}`);
-  for (const x of t.nhacTen ?? []) {
-    console.log(`tag:       ${t.noiDung.slice(x.pos, x.pos + x.len)} (uid ${x.uid})`);
-  }
-  for (const f of t.tepDinhKem ?? []) {
-    console.log(`đính kèm:  ${f.duongDan} (${(f.kichThuoc / 1024 / 1024).toFixed(2)} MB)`);
-  }
-  if (t.msgId) console.log(`msgId:     ${t.msgId} lúc ${t.guiLuc}`);
-  console.log("----- nguyên văn -----");
-  console.log(t.noiDung);
-  console.log("----------------------");
-}
 
 function layTin(account: string, id: string | undefined): TinHopThu {
   if (!id || !laIdHopLe(id)) thoat("Thiếu hoặc sai <id>");
@@ -99,58 +74,7 @@ const account = chonAccount(values.account);
 
 switch (lenh) {
   case "add": {
-    const threadId = values.thread ?? thoat("Thiếu --thread <threadId> (lấy ở 00_danh-ba.md)");
-    const noiDung = values.file ? fs.readFileSync(values.file, "utf8").replace(/\r\n/g, "\n").trimEnd() : values.text;
-    const duongDanTep = (values.attach ?? []).map((p) => path.resolve(p));
-    if (duongDanTep.length > TRAN_SO_TEP) thoat(`Tối đa ${TRAN_SO_TEP} tệp mỗi tin`);
-    let tepDinhKem;
-    try {
-      tepDinhKem = [];
-      for (const p of duongDanTep) tepDinhKem.push(await moTaTep(p, quyDinhTep));
-    } catch (err) {
-      thoat(`Tệp đính kèm không hợp lệ: ${(err as Error).message}`);
-    }
-    if (!noiDung?.trim() && tepDinhKem.length === 0) thoat("Thiếu --text / --file, hoặc --attach");
-    const cuoc = docDanhBa(goc, account)[threadId];
-    if (!cuoc) thoat(`threadId ${threadId} không có trong danh bạ log của ${account}`);
-    let chu = noiDung ?? "";
-    let nhacTen;
-    const yeuCauTag = values.mention ?? [];
-    if (yeuCauTag.length > 0) {
-      if (!cuoc.laNhom) thoat("Chỉ tag được trong tin nhóm");
-      if (yeuCauTag.length > TRAN_SO_TAG) thoat(`Tối đa ${TRAN_SO_TAG} người được tag mỗi tin`);
-      const danhBaNguoi = docNguoiTrongDanhBa(goc, account);
-      const nguoi = yeuCauTag.map((m) => {
-        if (m.toLowerCase() === "all") return { uid: UID_TAG_TAT_CA, ten: "All" };
-        const [uid = "", tenTay] = m.split("=");
-        if (!/^\d+$/.test(uid)) thoat(`--mention sai: "${m}" (cần <uid>, <uid>=<Tên> hoặc all)`);
-        const ten = tenTay?.trim() || danhBaNguoi[uid];
-        if (!ten) thoat(`uid ${uid} chưa có trong bảng Người của danh bạ - dùng --mention ${uid}=<Tên hiển thị>`);
-        return { uid, ten };
-      });
-      try {
-        ({ noiDung: chu, nhacTen } = dungTag(chu, nguoi));
-      } catch (err) {
-        thoat(`Không dựng được tag: ${(err as Error).message}`);
-      }
-    }
-    if (chu.length > TRAN_KY_TU) thoat(`Nội dung dài quá ${TRAN_KY_TU} ký tự`);
-    const bayGio = new Date();
-    const tin: TinHopThu = {
-      id: taoIdTin(bayGio),
-      accountId: account,
-      threadId,
-      loaiCuoc: cuoc.laNhom ? "nhom" : "rieng",
-      tenCuoc: cuoc.ten,
-      noiDung: chu,
-      ...(tepDinhKem.length > 0 ? { tepDinhKem } : {}),
-      ...(nhacTen && nhacTen.length > 0 ? { nhacTen } : {}),
-      trangThai: "cho_duyet",
-      taoLuc: bayGio.toISOString(),
-    };
-    ghiTin(goc, tin);
-    console.log("Đã tạo tin CHỜ DUYỆT (chưa gửi):");
-    inTin(tin);
+    await lenhAdd(goc, account, quyDinhTep, values);
     break;
   }
   case "approve": {
@@ -160,21 +84,37 @@ switch (lenh) {
     if (tepDoi) thoat(`Không duyệt được: ${tepDoi}`);
     // Khóa HMAC nằm trong DATA_DIR (ngoài vùng log); chưa có thì sinh ở lần duyệt đầu tiên
     const khoa = layHoacTaoKhoa(dataDir);
-    const daDuyet: TinHopThu = {
-      ...t,
-      trangThai: "da_duyet",
-      duyetLuc: new Date().toISOString(),
-      banBam: kyDuyet(t, khoa),
-    };
-    ghiTin(goc, daDuyet);
+    // Duyệt dưới khóa tin: hủy / bot giành chen vào giữa thì thấy trạng thái thật, không ghi đè
+    const kq = doiTrangThai(
+      goc,
+      account,
+      t.id,
+      (cur) =>
+        cur.trangThai !== "cho_duyet"
+          ? `đang ở trạng thái ${cur.trangThai}`
+          : bamTin(cur) !== bamTin(t)
+            ? "tin vừa bị sửa trong lúc duyệt - xem lại rồi duyệt lại"
+            : null,
+      (cur) => ({ ...cur, trangThai: "da_duyet", duyetLuc: new Date().toISOString(), banBam: kyDuyet(cur, khoa) }),
+    );
+    if (!kq.ok) thoat(`Không duyệt được tin ${t.id}: ${kq.lyDo}`);
     console.log("Đã DUYỆT, bot sẽ gửi (nếu đang bật OUTBOX_ENABLED):");
-    inTin(daDuyet);
+    inTin(kq.tin);
     break;
   }
   case "cancel": {
     const t = layTin(account, id);
-    if (t.trangThai !== "cho_duyet" && t.trangThai !== "da_duyet") thoat(`Tin ${t.id} đã ${t.trangThai}, không hủy được`);
-    ghiTin(goc, { ...t, trangThai: "huy" });
+    // Đọc - kiểm - ghi dưới khóa tin (bot cũng giành tin qua khóa này) rồi đọc lại để báo ĐÚNG trạng thái thật
+    const kq = doiTrangThai(
+      goc,
+      account,
+      t.id,
+      (cur) => (cur.trangThai === "cho_duyet" || cur.trangThai === "da_duyet" ? null : `đã ${cur.trangThai}`),
+      (cur) => ({ ...cur, trangThai: "huy" }),
+    );
+    if (!kq.ok) thoat(`Tin ${t.id} ${kq.lyDo}, không hủy được${kq.hienTai?.trangThai === "dang_gui" ? " (bot đã giành để gửi, kiểm tra Zalo)" : ""}`);
+    const sau = docTin(goc, account, t.id);
+    if (sau?.trangThai !== "huy") thoat(`Hủy không thành: trạng thái thật của tin ${t.id} là ${sau?.trangThai ?? "(không đọc được)"}`);
     console.log(`Đã hủy tin ${t.id}`);
     break;
   }

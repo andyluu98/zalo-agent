@@ -29,6 +29,13 @@ Bản `0.x` nghĩa là API và cấu hình còn có thể đổi giữa các b�
   cứng; trỏ log ra ngoài `data/` (như `F:\Zalo-Logs`) để đính kèm từ đó. Băm tệp theo luồng, không còn
   `readFileSync` chặn event loop. Tool `send_file` của agent cũng giải symlink / junction trong kho
   `shared-files` và từ chối tệp trỏ ra ngoài kho.
+- **Hộp thư đi không còn treo vĩnh viễn**: mỗi lần gửi có hạn chót 5 phút + 1 phút cho mỗi 10 MB tệp, trần
+  20 phút. Quá hạn thì tin chuyển `loi` "quá thời gian chờ gửi, không rõ tin đã tới chưa, kiểm tra Zalo",
+  không bao giờ tự gửi lại, trả lời đến muộn không ghi đè. Cờ `dangChay` của watcher nhả trong `finally`, một
+  account lỗi không chặn account khác. `pnpm outbox cancel` / `approve` và việc bot giành tin đi qua khóa
+  `<id>.lock` (đọc, kiểm, ghi nguyên tử): hủy tin đã `dang_gui` / `da_gui` / `loi` bị từ chối, và CLI đọc lại
+  để báo đúng trạng thái thật thay vì "đã hủy" khi bot vừa giành tin. Một lượt của watcher tách ra
+  `outbox-watcher-luot.ts` nhận phụ thuộc để test bằng zca-js giả.
 
 ### Thêm
 

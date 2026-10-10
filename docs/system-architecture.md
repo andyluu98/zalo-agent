@@ -345,7 +345,9 @@ Tài khoản chỉ đọc gửi tin do người dùng duyệt từng cái (`src/
 JSON trong `<CHAT_EXPORT_DIR>/hop-thu-di/<accountId>/`, ngoài repo nên không bao giờ vào git.
 
 - Vòng đời: `cho_duyet` -> (`pnpm outbox approve`) `da_duyet` -> `dang_gui` -> `da_gui` | `loi`; `huy` bất cứ lúc nào trước khi gửi.
-- `approve` ghi `banBam` = sha256 nội dung. Bot từ chối tin thiếu/lệch dấu này: ghi tay hay sửa sau duyệt đều không lọt.
+- `approve` ghi `banBam` = HMAC-SHA256 (`hmac1:<hex>`) phủ id, accountId, threadId, loaiCuoc, chữ, tệp, tag; khóa 32 byte tự sinh ở `<DATA_DIR>/outbox-hmac.key` (ngoài vùng log). Bot từ chối tin thiếu khóa / thiếu chữ ký / lệch chữ ký (kể cả dấu sha256 trần của bản cũ): ghi tay, tự băm lại hay sửa sau duyệt đều không lọt. Rủi ro còn lại đã chấp nhận: ai chạy được lệnh trên máy (kể cả agent) vẫn tự `approve` được, nên lớp chặn chính là ranh giới tin cậy trong hướng dẫn AI (v8).
+- Tệp đính kèm: chỉ trong thư mục cho phép (`OUTBOX_ATTACH_ALLOWED_DIRS`, mặc định Downloads/Documents/Desktop + `CHAT_EXPORT_DIR`), `realpath` chống symlink / junction, repo + `DATA_DIR` + `.env*` chặn cứng; kiểm lúc add, approve và ngay trước khi gửi. Bot đọc tệp MỘT lần vào Buffer, băm đúng Buffer đó, gửi chính Buffer (zca-js `{data, filename, metadata}`).
+- Gửi có hạn chót 5 phút + 1 phút/10 MB (trần 20 phút); quá hạn thì `loi` "không rõ đã gửi chưa", không tự gửi lại. Hủy / duyệt / giành tin đi qua khóa `<id>.lock` nên không đan xen.
 - Ghi `dang_gui` TRƯỚC khi gọi `sendMessage`; gặp `dang_gui` không thuộc tiến trình hiện tại thì chuyển `loi`, không gửi lại (tin có thể đã tới). Lỗi API cũng không tự thử lại.
 - `threadId` phải có trong `danh-ba.json` của log và khớp loại nhóm/riêng.
 - Kích hoạt bằng `fs.watch` (gom sự kiện 800ms), một lượt lúc boot, vòng dự phòng 5 phút. Giới hạn tốc độ tính từ `guiLuc` của file, theo từng account; chạm giới hạn thì hẹn timer, tin vẫn chờ.

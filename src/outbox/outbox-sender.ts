@@ -7,13 +7,14 @@ import {
   danhSachTin,
   docKhoa,
   docDanhBa,
-  docTin,
   ghiTin,
   TRAN_KY_TU,
   type TinHopThu,
 } from "./outbox-file-store.js";
 import { laTrongThuMuc, type QuyDinhTep } from "./outbox-path-guard.js";
+import { guiCoHan, hanGuiMacDinh } from "./outbox-send-deadline.js";
 import { TIEN_TO_CHU_KY } from "./outbox-signature.js";
+import { doiTrangThai } from "./outbox-transaction.js";
 
 /**
  * Một lượt xử lý hộp thư đi của MỘT account. Chỉ gửi tin `da_duyet`.
@@ -21,7 +22,8 @@ import { TIEN_TO_CHU_KY } from "./outbox-signature.js";
  * Chống gửi lặp: GIÀNH tin bằng cách ghi `dang_gui` TRƯỚC khi gọi API. Gặp
  * `dang_gui` mà tiến trình này không đang gửi (bot chết giữa chừng rồi bật
  * lại) thì KHÔNG gửi lại - chuyển `loi` để người dùng tự kiểm tra, vì tin có
- * thể đã tới nơi. Lỗi từ API cũng vậy: không bao giờ tự thử lại.
+ * thể đã tới nơi. Lỗi từ API cũng vậy: không bao giờ tự thử lại. Gửi quá hạn
+ * (xem outbox-send-deadline.ts) cũng chuyển `loi`, kết quả đến muộn bị bỏ.
  */
 
 /** `tep`: tệp đã nạp vào RAM và băm xong - gửi chính Buffer này (rỗng = chỉ gửi chữ) */
@@ -103,6 +105,10 @@ export async function xuLyHopThu(opts: {
   gui: GuiTinVanBan;
   cauHinh: CauHinhGui;
   bayGio?: () => Date;
+  /** Hạn chót một lần gửi theo tổng byte tệp; mặc định 5 phút + 1 phút/10 MB, trần 20 phút */
+  hanGuiMs?: (tongBytes: number) => number;
+  /** Chỉ test: chạy ngay trước khi giành tin, để dựng ca lệnh hủy chen vào khe đó */
+  truocKhiGianh?: (tin: TinHopThu) => void | Promise<void>;
 }): Promise<KetQuaLuot> {
   const { goc, accountId, gui, cauHinh } = opts;
   const bayGio = opts.bayGio ?? (() => new Date());
@@ -136,32 +142,36 @@ export async function xuLyHopThu(opts: {
       continue;
     }
 
-    // Đọc lại ngay trước khi giành: lệnh hủy có thể vừa chen vào
-    const moiNhat = docTin(goc, accountId, tin.id);
-    if (!moiNhat || moiNhat.trangThai !== "da_duyet" || moiNhat.banBam !== tin.banBam) continue;
+    await opts.truocKhiGianh?.(tin);
 
+    // GIÀNH tin dưới khóa: đọc lại + đổi sang dang_gui là một bước nguyên tử, nên lệnh hủy của
+    // CLI chen vào trước thì thấy `huy` và không gửi; chen vào sau thì CLI thấy `dang_gui` và báo hủy thất bại
     dangGui.add(tin.id);
-    const daGianh: TinHopThu = { ...moiNhat, trangThai: "dang_gui", guiLuc: bayGio().toISOString() };
     try {
-      ghiTin(goc, daGianh);
-      try {
-        const msgId = await gui(
-          daGianh.threadId,
-          daGianh.loaiCuoc === "nhom",
-          daGianh.noiDung,
-          nap.tep,
-          daGianh.nhacTen ?? [],
-        );
-        ghiTin(goc, {
-          ...daGianh,
-          trangThai: "da_gui",
-          guiLuc: bayGio().toISOString(),
-          ...(msgId ? { msgId } : {}),
-        });
+      const gianh = doiTrangThai(
+        goc,
+        accountId,
+        tin.id,
+        (t) => (t.trangThai === "da_duyet" && t.banBam === tin.banBam ? null : `đã đổi sang ${t.trangThai}`),
+        (t) => ({ ...t, trangThai: "dang_gui", guiLuc: bayGio().toISOString() }),
+      );
+      if (!gianh.ok) {
+        if (gianh.banRon) return { daGui, henLaiSauMs: 1000 };
+        continue;
+      }
+      const daGianh = gianh.tin;
+      const tongBytes = nap.tep.reduce((n, t) => n + t.data.length, 0);
+      const kq = await guiCoHan(
+        () => gui(daGianh.threadId, daGianh.loaiCuoc === "nhom", daGianh.noiDung, nap.tep, daGianh.nhacTen ?? []),
+        (opts.hanGuiMs ?? hanGuiMacDinh)(tongBytes),
+      );
+      if (kq.loai === "xong") {
+        ghiTin(goc, { ...daGianh, trangThai: "da_gui", guiLuc: bayGio().toISOString(), ...(kq.msgId ? { msgId: kq.msgId } : {}) });
         daGui++;
-      } catch (err) {
-        const chiTiet = err instanceof Error ? err.message : String(err);
-        danhLoi(goc, daGianh, `gửi thất bại: ${chiTiet.slice(0, 300)}`);
+      } else if (kq.loai === "het_gio") {
+        danhLoi(goc, daGianh, "quá thời gian chờ gửi - không rõ tin đã tới chưa, kiểm tra Zalo trước khi tạo lại");
+      } else {
+        danhLoi(goc, daGianh, `gửi thất bại: ${kq.chiTiet.slice(0, 300)}`);
       }
     } finally {
       dangGui.delete(tin.id);

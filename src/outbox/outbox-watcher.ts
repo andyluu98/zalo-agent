@@ -1,69 +1,44 @@
 import fs from "node:fs";
 import path from "node:path";
-import { ThreadType } from "zca-js";
 import { getAccount } from "../config/account-store.js";
 import { chatExportDir, dataDir } from "../config/env.js";
 import { getTuning } from "../config/runtime-tuning-settings.js";
 import { createLogger } from "../shared/logger.js";
 import { getRunningAccountKenh, getRunningAccounts } from "../zalo/account-manager.js";
-import { danhSachAccountCoHopThu, THU_MUC_HOP_THU } from "./outbox-file-store.js";
 import { quyDinhTepTuEnv } from "./outbox-attachment-policy.js";
-import { xuLyHopThu } from "./outbox-sender.js";
-import { sangNguonZca } from "./outbox-zca-attachments.js";
+import { THU_MUC_HOP_THU } from "./outbox-file-store.js";
+import { motLuot, taoBoKichHoat } from "./outbox-watcher-luot.js";
 
 /**
  * Theo dõi hộp thư đi: KHÔNG quét liên tục. Chạy khi Windows báo có file đổi
  * (`fs.watch`), một lần lúc khởi động, và một vòng dự phòng thưa phòng khi
  * watch bỏ sót (ổ đĩa ngắt rồi cắm lại...). Chỉ account CHỈ ĐỌC, kênh cá nhân,
- * đang chạy mới được gửi; `OUTBOX_ENABLED` tắt thì không làm gì.
+ * đang chạy mới được gửi; `OUTBOX_ENABLED` tắt thì không làm gì. Phần xử lý một
+ * lượt nằm ở `outbox-watcher-luot.ts` (nhận phụ thuộc, test bằng zca-js giả).
  */
 
 const log = createLogger("outbox");
 const DU_PHONG_MS = 5 * 60_000;
 const GOM_SU_KIEN_MS = 800;
 
-let dangChay = false;
-let chayLai = false;
 let henGom: ReturnType<typeof setTimeout> | undefined;
 let henTocDo: ReturnType<typeof setTimeout> | undefined;
 
-async function motLuot(): Promise<void> {
-  if (!getTuning("OUTBOX_ENABLED")) return;
-  const cauHinh = {
-    cachNhauMs: getTuning("OUTBOX_MIN_GAP_SECONDS") * 1000,
-    tranMoiGio: getTuning("OUTBOX_MAX_PER_HOUR"),
-  };
-  const chay = new Set(getRunningAccounts().map((a) => a.id));
-  let henSom: number | undefined;
-  for (const accountId of danhSachAccountCoHopThu(chatExportDir)) {
-    if (!chay.has(accountId) || getAccount(accountId)?.readOnly !== true) continue;
-    const api = getRunningAccountKenh(accountId)?.api;
-    if (!api) continue;
-    const kq = await xuLyHopThu({
-      goc: chatExportDir,
-      accountId,
-      thuMucKhoa: dataDir,
-      quyDinhTep: quyDinhTepTuEnv(),
-      cauHinh,
-      gui: async (threadId, laNhom, noiDung, tep, tag) => {
-        const loai = laNhom ? ThreadType.Group : ThreadType.User;
-        // Một lời gọi gửi cả chữ, tag (@người) và tệp, giống công cụ send_file / tag_member
-        const tin =
-          tep.length === 0 && tag.length === 0
-            ? noiDung
-            : {
-                msg: noiDung,
-                ...(tep.length > 0 ? { attachments: sangNguonZca(tep) } : {}),
-                ...(tag.length > 0 ? { mentions: tag.map((x) => ({ pos: x.pos, uid: x.uid, len: x.len })) } : {}),
-              };
-        const r = await api.sendMessage(tin, threadId, loai);
-        const id = r?.message?.msgId ?? r?.attachment?.[0]?.msgId;
-        return id === undefined || id === null ? undefined : String(id);
-      },
-    });
-    if (kq.daGui > 0) log.info({ accountId, daGui: kq.daGui }, "Đã gửi tin từ hộp thư đi");
-    if (kq.henLaiSauMs !== undefined) henSom = Math.min(henSom ?? Infinity, kq.henLaiSauMs);
-  }
+async function chayMotLuot(): Promise<void> {
+  const henSom = await motLuot({
+    goc: chatExportDir,
+    thuMucKhoa: dataDir,
+    quyDinhTep: quyDinhTepTuEnv,
+    hopThuBat: () => getTuning("OUTBOX_ENABLED"),
+    cauHinh: () => ({
+      cachNhauMs: getTuning("OUTBOX_MIN_GAP_SECONDS") * 1000,
+      tranMoiGio: getTuning("OUTBOX_MAX_PER_HOUR"),
+    }),
+    accountDangChay: () => getRunningAccounts().map((a) => a.id),
+    laChiDoc: (id) => getAccount(id)?.readOnly === true,
+    layApi: (id) => getRunningAccountKenh(id)?.api ?? undefined,
+    log,
+  });
   if (henSom !== undefined) {
     clearTimeout(henTocDo);
     henTocDo = setTimeout(kichHoat, henSom + 200);
@@ -71,23 +46,7 @@ async function motLuot(): Promise<void> {
   }
 }
 
-/** Chạy một lượt; đang chạy thì ghi nhớ để chạy thêm một lượt ngay sau */
-function kichHoat(): void {
-  if (dangChay) {
-    chayLai = true;
-    return;
-  }
-  dangChay = true;
-  motLuot()
-    .catch((err) => log.error({ err }, "Lỗi xử lý hộp thư đi"))
-    .finally(() => {
-      dangChay = false;
-      if (chayLai) {
-        chayLai = false;
-        kichHoat();
-      }
-    });
-}
+const { kichHoat } = taoBoKichHoat(chayMotLuot, (err) => log.error({ err }, "Lỗi xử lý hộp thư đi"));
 
 export function startOutboxWatcher(): () => void {
   const goc = path.join(chatExportDir, THU_MUC_HOP_THU);
