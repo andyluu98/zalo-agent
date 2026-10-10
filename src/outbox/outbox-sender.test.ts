@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { bamNoiDung, docTin, ghiTin, type TinHopThu } from "./outbox-file-store.js";
+import { bamNoiDung, bamTin, docTin, ghiTin, moTaTep, type TinHopThu } from "./outbox-file-store.js";
 import { thoiGianCho, xuLyHopThu } from "./outbox-sender.js";
 
 const ACC = "acc-test";
@@ -144,5 +144,71 @@ describe("thoiGianCho", () => {
     const ds = [daGui("2026-10-09T01:10:00.000Z"), daGui("2026-10-09T01:30:00.000Z")];
     assert.equal(thoiGianCho(ds, { cachNhauMs: 0, tranMoiGio: 2 }, bayGio), 10 * 60_000);
     assert.equal(thoiGianCho(ds, { cachNhauMs: 0, tranMoiGio: 3 }, bayGio), 0);
+  });
+});
+
+describe("xuLyHopThu - tệp đính kèm", () => {
+  function taoTep(ten: string, noiDung = "noi dung tep"): string {
+    const p = path.join(goc, ten);
+    fs.writeFileSync(p, noiDung);
+    return p;
+  }
+  function tinCoTep(id: string, tep: string[], noiDung = "gửi kèm file") {
+    const tepDinhKem = tep.map(moTaTep);
+    return tin(id, { noiDung, tepDinhKem, banBam: bamTin({ noiDung, tepDinhKem }) });
+  }
+
+  it("gửi kèm đúng đường dẫn tệp; tin chỉ có tệp (không chữ) vẫn gửi được", async () => {
+    const f1 = taoTep("bao-gia.xlsx");
+    const f2 = taoTep("hop-dong.pdf");
+    tinCoTep("a", [f1, f2]);
+    tinCoTep("b", [f1], "");
+    const daGoi: string[][] = [];
+    const gui = async (_t: string, _n: boolean, _c: string, tep: string[]) => {
+      daGoi.push(tep);
+      return "1";
+    };
+    const kq = await xuLyHopThu({ goc, accountId: ACC, gui, cauHinh: CAU_HINH });
+    assert.equal(kq.daGui, 2);
+    assert.deepEqual(daGoi, [[f1, f2], [f1]]);
+  });
+
+  it("tệp bị sửa SAU khi duyệt -> loi, không gửi", async () => {
+    const f = taoTep("bao-gia.xlsx");
+    tinCoTep("a", [f]);
+    fs.writeFileSync(f, "noi dung DA DOI");
+    const { daGoi, gui } = guiGia();
+    await xuLyHopThu({ goc, accountId: ACC, gui, cauHinh: CAU_HINH });
+    assert.equal(daGoi.length, 0);
+    assert.match(docTin(goc, ACC, "a")?.loi ?? "", /bị sửa hoặc thay/);
+  });
+
+  it("tệp bị xóa trước khi gửi -> loi", async () => {
+    const f = taoTep("x.docx");
+    tinCoTep("a", [f]);
+    fs.unlinkSync(f);
+    const { gui } = guiGia();
+    await xuLyHopThu({ goc, accountId: ACC, gui, cauHinh: CAU_HINH });
+    assert.match(docTin(goc, ACC, "a")?.loi ?? "", /không còn tệp/);
+  });
+
+  it("thêm tệp vào tin đã duyệt (không duyệt lại) -> loi vì mã duyệt lệch", async () => {
+    const f = taoTep("x.docx");
+    const t = tin("a");
+    ghiTin(goc, { ...t, tepDinhKem: [moTaTep(f)] });
+    const { daGoi, gui } = guiGia();
+    await xuLyHopThu({ goc, accountId: ACC, gui, cauHinh: CAU_HINH });
+    assert.equal(daGoi.length, 0);
+    assert.match(docTin(goc, ACC, "a")?.loi ?? "", /đã bị sửa sau khi duyệt/);
+  });
+
+  it("bamTin của tin không tệp = bamNoiDung cũ (tin duyệt từ bản trước vẫn hợp lệ)", () => {
+    assert.equal(bamTin({ noiDung: "abc" }), bamNoiDung("abc"));
+  });
+
+  it("moTaTep chặn đường dẫn tương đối, tệp không tồn tại, tệp rỗng", () => {
+    assert.throws(() => moTaTep("bao-gia.xlsx"), /tuyệt đối/);
+    assert.throws(() => moTaTep(path.join(goc, "khong-co.pdf")), /không thấy/);
+    assert.throws(() => moTaTep(taoTep("rong.txt", "")), /rỗng/);
   });
 });

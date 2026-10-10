@@ -41,9 +41,11 @@ async function motLuot(): Promise<void> {
       goc: chatExportDir,
       accountId,
       cauHinh,
-      gui: async (threadId, laNhom, noiDung) => {
-        const r = await api.sendMessage(noiDung, threadId, laNhom ? ThreadType.Group : ThreadType.User);
-        const id = r?.message?.msgId;
+      gui: async (threadId, laNhom, noiDung, tep) => {
+        const loai = laNhom ? ThreadType.Group : ThreadType.User;
+        // Có tệp: một lời gọi gửi cả chữ (làm chú thích) lẫn tệp, giống công cụ send_file
+        const r = await api.sendMessage(tep.length > 0 ? { msg: noiDung, attachments: tep } : noiDung, threadId, loai);
+        const id = r?.message?.msgId ?? r?.attachment?.[0]?.msgId;
         return id === undefined || id === null ? undefined : String(id);
       },
     });

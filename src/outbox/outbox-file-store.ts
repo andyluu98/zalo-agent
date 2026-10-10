@@ -13,9 +13,21 @@ import { z } from "zod";
 
 export const THU_MUC_HOP_THU = "hop-thu-di";
 export const TRAN_KY_TU = 2000;
+/** Trần tệp đính kèm mỗi tin và dung lượng mỗi tệp */
+export const TRAN_SO_TEP = 10;
+export const TRAN_MB_TEP = 100;
 
 export const TRANG_THAI = ["cho_duyet", "da_duyet", "dang_gui", "da_gui", "loi", "huy"] as const;
 export type TrangThaiTin = (typeof TRANG_THAI)[number];
+
+const tepSchema = z.object({
+  /** Đường dẫn TUYỆT ĐỐI trên máy */
+  duongDan: z.string().min(1),
+  kichThuoc: z.number().int().nonnegative(),
+  /** sha256 nội dung tệp lúc tạo tin - tệp bị thay sau đó thì không gửi */
+  bam: z.string(),
+});
+export type TepDinhKem = z.infer<typeof tepSchema>;
 
 const tinSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/),
@@ -24,10 +36,11 @@ const tinSchema = z.object({
   loaiCuoc: z.enum(["nhom", "rieng"]),
   tenCuoc: z.string().default(""),
   noiDung: z.string(),
+  tepDinhKem: z.array(tepSchema).max(TRAN_SO_TEP).optional(),
   trangThai: z.enum(TRANG_THAI),
   taoLuc: z.string(),
   duyetLuc: z.string().optional(),
-  /** sha256 của noiDung lúc duyệt - sửa nội dung sau khi duyệt thì không gửi */
+  /** `bamTin` lúc duyệt (nội dung + tệp) - sửa nội dung hay thay tệp sau khi duyệt thì không gửi */
   banBam: z.string().optional(),
   guiLuc: z.string().optional(),
   msgId: z.string().optional(),
@@ -37,6 +50,55 @@ export type TinHopThu = z.infer<typeof tinSchema>;
 
 export function bamNoiDung(noiDung: string): string {
   return crypto.createHash("sha256").update(noiDung, "utf8").digest("hex");
+}
+
+function bamTepTrenDia(duongDan: string): string {
+  return crypto.createHash("sha256").update(fs.readFileSync(duongDan)).digest("hex");
+}
+
+/**
+ * Mô tả một tệp để đính kèm: kiểm đường dẫn tuyệt đối, tồn tại, là tệp, trong
+ * trần dung lượng. Ném Error kèm lý do dễ đọc khi không hợp lệ.
+ */
+export function moTaTep(duongDan: string): TepDinhKem {
+  if (!path.isAbsolute(duongDan)) throw new Error(`cần đường dẫn tuyệt đối: ${duongDan}`);
+  let st: fs.Stats;
+  try {
+    st = fs.statSync(duongDan);
+  } catch {
+    throw new Error(`không thấy tệp: ${duongDan}`);
+  }
+  if (!st.isFile()) throw new Error(`không phải tệp: ${duongDan}`);
+  if (st.size === 0) throw new Error(`tệp rỗng: ${duongDan}`);
+  if (st.size > TRAN_MB_TEP * 1024 * 1024) throw new Error(`tệp lớn quá ${TRAN_MB_TEP} MB: ${duongDan}`);
+  return { duongDan, kichThuoc: st.size, bam: bamTepTrenDia(duongDan) };
+}
+
+/** Tệp còn đúng như lúc tạo tin không; null = còn nguyên, chuỗi = lý do */
+export function kiemTepConNguyen(tep: TepDinhKem[] | undefined): string | null {
+  for (const t of tep ?? []) {
+    let st: fs.Stats;
+    try {
+      st = fs.statSync(t.duongDan);
+    } catch {
+      return `không còn tệp: ${t.duongDan}`;
+    }
+    if (!st.isFile() || st.size !== t.kichThuoc || bamTepTrenDia(t.duongDan) !== t.bam) {
+      return `tệp đã bị sửa hoặc thay sau khi tạo tin: ${t.duongDan} - tạo lại tin`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Mã duyệt của cả tin. Tin không có tệp ra ĐÚNG `bamNoiDung` như trước, nên
+ * các tin đã duyệt / đã gửi từ bản cũ vẫn hợp lệ.
+ */
+export function bamTin(t: Pick<TinHopThu, "noiDung" | "tepDinhKem">): string {
+  const tep = t.tepDinhKem ?? [];
+  if (tep.length === 0) return bamNoiDung(t.noiDung);
+  const phan = [t.noiDung, ...tep.map((x) => `${x.duongDan}|${x.kichThuoc}|${x.bam}`)];
+  return crypto.createHash("sha256").update(phan.join("\u0000"), "utf8").digest("hex");
 }
 
 export function laIdHopLe(id: string): boolean {

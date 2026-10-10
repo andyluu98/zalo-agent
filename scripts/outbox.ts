@@ -1,6 +1,7 @@
 // Hộp thư đi có duyệt - CLI cho người/Claude soạn và duyệt từng tin.
 // Cách dùng:
 //   pnpm outbox add --thread <threadId> --text "..."   (hoặc --file <đường dẫn .txt>)
+//                   [--attach <đường dẫn tệp>]...     đính kèm tệp, lặp lại cho nhiều tệp
 //   pnpm outbox approve <id>      duyệt ĐÚNG một tin (in lại nguyên văn)
 //   pnpm outbox cancel <id>
 //   pnpm outbox show <id>
@@ -12,7 +13,10 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import { chatExportDir } from "../src/config/env.js";
 import {
-  bamNoiDung,
+  bamTin,
+  kiemTepConNguyen,
+  moTaTep,
+  TRAN_SO_TEP,
   danhSachTin,
   docDanhBa,
   docTin,
@@ -46,6 +50,9 @@ function inTin(t: TinHopThu): void {
   console.log(`id:        ${t.id}`);
   console.log(`trạng thái: ${t.trangThai}${t.loi ? ` (${t.loi})` : ""}`);
   console.log(`gửi tới:   ${t.tenCuoc} [${t.loaiCuoc}] threadId ${t.threadId}`);
+  for (const f of t.tepDinhKem ?? []) {
+    console.log(`đính kèm:  ${f.duongDan} (${(f.kichThuoc / 1024 / 1024).toFixed(2)} MB)`);
+  }
   if (t.msgId) console.log(`msgId:     ${t.msgId} lúc ${t.guiLuc}`);
   console.log("----- nguyên văn -----");
   console.log(t.noiDung);
@@ -66,6 +73,7 @@ const { values, positionals } = parseArgs({
     thread: { type: "string" },
     text: { type: "string" },
     file: { type: "string" },
+    attach: { type: "string", multiple: true },
     all: { type: "boolean", default: false },
   },
 });
@@ -76,8 +84,16 @@ switch (lenh) {
   case "add": {
     const threadId = values.thread ?? thoat("Thiếu --thread <threadId> (lấy ở 00_danh-ba.md)");
     const noiDung = values.file ? fs.readFileSync(values.file, "utf8").replace(/\r\n/g, "\n").trimEnd() : values.text;
-    if (!noiDung?.trim()) thoat("Thiếu --text hoặc --file");
-    if (noiDung.length > TRAN_KY_TU) thoat(`Nội dung dài quá ${TRAN_KY_TU} ký tự`);
+    const duongDanTep = (values.attach ?? []).map((p) => path.resolve(p));
+    if (duongDanTep.length > TRAN_SO_TEP) thoat(`Tối đa ${TRAN_SO_TEP} tệp mỗi tin`);
+    let tepDinhKem;
+    try {
+      tepDinhKem = duongDanTep.map(moTaTep);
+    } catch (err) {
+      thoat(`Tệp đính kèm không hợp lệ: ${(err as Error).message}`);
+    }
+    if (!noiDung?.trim() && tepDinhKem.length === 0) thoat("Thiếu --text / --file, hoặc --attach");
+    if ((noiDung ?? "").length > TRAN_KY_TU) thoat(`Nội dung dài quá ${TRAN_KY_TU} ký tự`);
     const cuoc = docDanhBa(goc, account)[threadId];
     if (!cuoc) thoat(`threadId ${threadId} không có trong danh bạ log của ${account}`);
     const bayGio = new Date();
@@ -87,7 +103,8 @@ switch (lenh) {
       threadId,
       loaiCuoc: cuoc.laNhom ? "nhom" : "rieng",
       tenCuoc: cuoc.ten,
-      noiDung,
+      noiDung: noiDung ?? "",
+      ...(tepDinhKem.length > 0 ? { tepDinhKem } : {}),
       trangThai: "cho_duyet",
       taoLuc: bayGio.toISOString(),
     };
@@ -99,11 +116,13 @@ switch (lenh) {
   case "approve": {
     const t = layTin(account, id);
     if (t.trangThai !== "cho_duyet") thoat(`Tin ${t.id} đang ở trạng thái ${t.trangThai}, chỉ duyệt được cho_duyet`);
+    const tepDoi = kiemTepConNguyen(t.tepDinhKem);
+    if (tepDoi) thoat(`Không duyệt được: ${tepDoi}`);
     const daDuyet: TinHopThu = {
       ...t,
       trangThai: "da_duyet",
       duyetLuc: new Date().toISOString(),
-      banBam: bamNoiDung(t.noiDung),
+      banBam: bamTin(t),
     };
     ghiTin(goc, daDuyet);
     console.log("Đã DUYỆT, bot sẽ gửi (nếu đang bật OUTBOX_ENABLED):");
@@ -124,7 +143,8 @@ switch (lenh) {
     const ds = danhSachTin(goc, account).filter((t) => values.all || !["da_gui", "huy"].includes(t.trangThai));
     if (ds.length === 0) console.log("(không có tin nào)");
     for (const t of ds) {
-      const tom = t.noiDung.replace(/\s+/g, " ").slice(0, 60);
+      const soTep = (t.tepDinhKem ?? []).length;
+      const tom = t.noiDung.replace(/\s+/g, " ").slice(0, 60) + (soTep ? `  [+${soTep} tệp]` : "");
       console.log(`${t.id}  ${t.trangThai.padEnd(9)}  ${t.tenCuoc} [${t.loaiCuoc}]  ${tom}${t.loi ? `  LỖI: ${t.loi}` : ""}`);
     }
     break;

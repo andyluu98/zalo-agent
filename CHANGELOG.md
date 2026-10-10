@@ -10,6 +10,10 @@ Bản `0.x` nghĩa là API và cấu hình còn có thể đổi giữa các b�
 
 ### Thêm
 
+- **Đính kèm tệp cho hộp thư đi**: `pnpm outbox add ... --attach <tệp>` (lặp được, tối đa 10 tệp, mỗi tệp
+  100 MB, đường dẫn tuyệt đối). Mã duyệt tính trên cả chữ lẫn tệp; tệp bị sửa / thay / xóa sau khi
+  duyệt thì không gửi. Tin không tệp giữ nguyên mã duyệt cũ. Gửi bằng một lời gọi `sendMessage({ msg, attachments })`.
+
 - **Hộp thư đi có duyệt cho tài khoản chỉ đọc** (`src/outbox/`, `pnpm outbox`). Mỗi tin
   một file JSON trong `<CHAT_EXPORT_DIR>/hop-thu-di/<accountId>/`; bot chỉ gửi tin
   `da_duyet` có dấu duyệt `banBam` khớp nội dung, giành bằng `dang_gui` trước khi gửi nên

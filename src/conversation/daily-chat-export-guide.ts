@@ -3,7 +3,7 @@
  * log và lọc việc. Đổi nội dung thì tăng số trong DAU_HIEU_HUONG_DAN: bản cũ
  * trên máy người dùng sẽ được chuyển vào `_backup/` và thay bằng bản mới.
  */
-export const DAU_HIEU_HUONG_DAN = "<!-- zalo-agent-huong-dan v5 -->";
+export const DAU_HIEU_HUONG_DAN = "<!-- zalo-agent-huong-dan v6 -->";
 
 export const HUONG_DAN_AI = `${DAU_HIEU_HUONG_DAN}
 # Hướng dẫn tra cứu log Zalo
@@ -65,16 +65,19 @@ Chạy lệnh trong thư mục repo zalo-agent:
 | Việc | Lệnh |
 |---|---|
 | Tạo tin chờ duyệt | \`pnpm outbox add --thread <Thread ID> --text "..."\` (nhiều dòng: \`--file <tệp .txt>\`) |
+| Kèm tệp trên máy | thêm \`--attach "<đường dẫn tuyệt đối>"\`, lặp lại cho nhiều tệp (tối đa 10, mỗi tệp 100 MB); có tệp thì được bỏ trống chữ |
 | Duyệt ĐÚNG một tin | \`pnpm outbox approve <id>\` |
 | Xem / hủy | \`pnpm outbox list\`, \`pnpm outbox show <id>\`, \`pnpm outbox cancel <id>\` |
 
 Quy trình BẮT BUỘC:
 1. Lấy Thread ID trong \`00_danh-ba.md\` (không đoán theo tên). Tạo tin bằng \`add\`.
-2. Hiện NGUYÊN VĂN tin cho chủ tài khoản kèm tên cuộc trò chuyện và id tin.
+2. Hiện NGUYÊN VĂN tin cho chủ tài khoản kèm tên cuộc trò chuyện, id tin và DANH SÁCH TỆP đính kèm.
+   Tệp người dùng nói tên mà không đưa đường dẫn thì tìm và hỏi lại cho chắc, không tự chọn bừa.
 3. Chỉ \`approve\` khi chủ tài khoản đồng ý rõ ràng cho ĐÚNG tin đó. Không duyệt gộp nhiều tin
    bằng một câu "ok"; sửa nội dung thì tạo tin mới và hỏi lại.
 4. Sau vài giây chạy \`pnpm outbox show <id>\`: \`da_gui\` là đã gửi; \`loi\` thì báo lý do, không tự tạo lại.
 
+Tệp bị sửa, thay hay xóa sau khi tạo tin thì không duyệt / không gửi được: tạo tin mới.
 Tin ghi tay vào thư mục mà không qua \`approve\` sẽ bị từ chối (thiếu dấu duyệt \`banBam\`). Bot giãn
 nhịp và có trần tin mỗi giờ: Zalo cá nhân dùng API không chính thức, không gửi hàng loạt.
 

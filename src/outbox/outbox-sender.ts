@@ -1,5 +1,6 @@
 import {
-  bamNoiDung,
+  bamTin,
+  kiemTepConNguyen,
   danhSachTin,
   docDanhBa,
   docTin,
@@ -17,7 +18,13 @@ import {
  * thể đã tới nơi. Lỗi từ API cũng vậy: không bao giờ tự thử lại.
  */
 
-export type GuiTinVanBan = (threadId: string, laNhom: boolean, noiDung: string) => Promise<string | undefined>;
+/** `tep`: đường dẫn tuyệt đối các tệp đính kèm (rỗng = chỉ gửi chữ) */
+export type GuiTinVanBan = (
+  threadId: string,
+  laNhom: boolean,
+  noiDung: string,
+  tep: string[],
+) => Promise<string | undefined>;
 
 export type CauHinhGui = {
   /** Khoảng cách tối thiểu giữa 2 tin của cùng account */
@@ -43,15 +50,17 @@ function danhLoi(goc: string, tin: TinHopThu, loi: string): void {
 
 /** Lý do không được gửi, hoặc null nếu hợp lệ */
 export function kiemTinTruocKhiGui(tin: TinHopThu, danhBa: ReturnType<typeof docDanhBa>): string | null {
-  if (!tin.banBam || tin.banBam !== bamNoiDung(tin.noiDung)) {
-    return "nội dung đã bị sửa sau khi duyệt (hoặc chưa duyệt qua lệnh approve) - duyệt lại";
+  if (!tin.banBam || tin.banBam !== bamTin(tin)) {
+    return "nội dung hoặc tệp đính kèm đã bị sửa sau khi duyệt (hoặc chưa duyệt qua lệnh approve) - duyệt lại";
   }
-  if (!tin.noiDung.trim()) return "nội dung rỗng";
+  const coTep = (tin.tepDinhKem ?? []).length > 0;
+  if (!tin.noiDung.trim() && !coTep) return "nội dung rỗng";
   if (tin.noiDung.length > TRAN_KY_TU) return `nội dung dài quá ${TRAN_KY_TU} ký tự`;
   const cuoc = danhBa[tin.threadId];
   if (!cuoc) return "threadId không có trong danh bạ của log";
   if (cuoc.laNhom !== (tin.loaiCuoc === "nhom")) return "loaiCuoc không khớp danh bạ (nhóm/riêng)";
-  return null;
+  // Đọc lại tệp trên đĩa NGAY trước khi gửi: mã duyệt chỉ chứng minh mô tả tệp không đổi
+  return kiemTepConNguyen(tin.tepDinhKem);
 }
 
 /** Bao lâu nữa mới được gửi tin kế tiếp (0 = gửi được ngay) */
@@ -112,7 +121,12 @@ export async function xuLyHopThu(opts: {
     try {
       ghiTin(goc, daGianh);
       try {
-        const msgId = await gui(daGianh.threadId, daGianh.loaiCuoc === "nhom", daGianh.noiDung);
+        const msgId = await gui(
+          daGianh.threadId,
+          daGianh.loaiCuoc === "nhom",
+          daGianh.noiDung,
+          (daGianh.tepDinhKem ?? []).map((t) => t.duongDan),
+        );
         ghiTin(goc, {
           ...daGianh,
           trangThai: "da_gui",
