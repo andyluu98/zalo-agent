@@ -8,3 +8,14 @@ auditLevel: moderate # pnpm audit flags moderate+ severity
 # khi nào thêm package cần build script thì whitelist tại đây.
 allowBuilds:
   esbuild: true # binary resolver của tsx - trusted
+
+# Ghi đè phiên bản gián tiếp có lỗ hổng (pnpm audit --prod, 10/10/2026). Chỉ nâng trong CÙNG major,
+# trừ uuid: exceljs chỉ dùng v4 (named export) nên 8 -> 11 an toàn. Gỡ khi cha đã tự nâng.
+overrides:
+  undici: ">=7.29.1 <8"
+  "brace-expansion@1": ">=1.1.21 <2"
+  "brace-expansion@2": ">=2.1.7 <3"
+  "uuid@8": "11.1.1"
+  # Gom về MỘT bản (bản của @ai-sdk/google đã nâng): hai bản provider song song làm lệch kiểu LanguageModelV4
+  "@ai-sdk/provider": "4.0.26"
+  "@ai-sdk/provider-utils": "5.0.58"

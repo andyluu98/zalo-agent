@@ -30,3 +30,5 @@ qr*.png
 
 # Trạng thái phiên của Claude Code trên máy
 .claude/session-state/
+# Script do một lần của agent (đọc log thật), không đưa vào repo
+.claude/do-*.ts

@@ -52,6 +52,11 @@ Bản `0.x` nghĩa là API và cấu hình còn có thể đổi giữa các b�
   `POST /api/kb/sources/file`, vẫn qua kiểm Origin). Lý do: cookie `SameSite=Lax` không tính cổng, một trang
   khác trên 127.0.0.1 bị XSS gọi được API bằng phiên của chủ máy. Request không có `Origin` (curl, script) chỉ
   qua khi không có `Sec-Fetch-Site` cross-site; trình duyệt luôn gửi `Origin` cho request ghi.
+- **Cập nhật thư viện vá lỗ hổng** (`pnpm audit --prod`: 31 lỗ gồm 12 mức cao, còn 0): `image-size` 2.0.4
+  (ảnh độc không còn treo được bot), `hono` 4.13.13, `@ai-sdk/google` 4.0.93; `overrides` trong
+  `pnpm-workspace.yaml` cho `undici` (>=7.29.1), `brace-expansion` (1.1.21 / 2.1.7), `uuid@8` -> 11.1.1 (exceljs
+  chỉ dùng `v4`), và gom `@ai-sdk/provider` / `provider-utils` về một bản để khỏi lệch kiểu. `.claude/do-*.ts`
+  vào `.gitignore`.
 - **Tài khoản chỉ đọc không tự chấp nhận kết bạn**: vòng quét bỏ qua tài khoản `readOnly`; `PATCH
   /api/accounts/:id` trả 400 nếu kết quả có cả `readOnly` và `autoAcceptFriends` cùng bật (cả hai chiều).
 
