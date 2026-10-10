@@ -37,7 +37,7 @@ describe("danhSachTepCanTai", () => {
       danhSachTepCanTai(tin({ images: [{ url: "https://z/a.jpg" }, { url: "https://z/b.jpg" }] })).map((t) => t.ten),
       ["anh_m1-1", "anh_m1-2"],
     );
-    assert.equal(danhSachTepCanTai(tin({ loaiTin: "file", dinhKem: { ten: "Báo giá.xlsx", url: "https://z/f" } }))[0]?.loai, "file");
+    assert.equal(danhSachTepCanTai(tin({ loaiTin: "file", dinhKem: { ten: "Báo giá.xlsx", url: "https://file-stal-1.dlfl.vn/f" } }))[0]?.loai, "file");
     assert.deepEqual(danhSachTepCanTai(tin({ loaiTin: "lien_ket", dinhKem: { ten: "bài báo", url: "https://vnexpress.net" } })), []);
   });
 });
@@ -45,7 +45,7 @@ describe("danhSachTepCanTai", () => {
 describe("taiTep", () => {
   it("lưu vào <ngày>/tep/HHmm_ten, giữ đuôi gốc, bỏ dấu tên; trùng tên thêm -2", async () => {
     const ngay = fs.mkdtempSync(path.join(os.tmpdir(), "tep-"));
-    const ds = [{ loai: "file" as const, url: "https://z/f", ten: "Báo giá Khách A.xlsx" }];
+    const ds = [{ loai: "file" as const, url: "https://file-stal-1.dlfl.vn/f", ten: "Báo giá Khách A.xlsx" }];
     const a = await taiTep(ngay, "11:30", ds, { maxBytes: 100, tai: taiGia("application/octet-stream") });
     const b = await taiTep(ngay, "11:30", ds, { maxBytes: 100, tai: taiGia("application/octet-stream") });
     assert.equal(a[0]?.duongDan, "tep/1130_bao-gia-khach-a.xlsx");
@@ -55,7 +55,7 @@ describe("taiTep", () => {
 
   it("ảnh không có đuôi thì lấy đuôi theo mediaType", async () => {
     const ngay = fs.mkdtempSync(path.join(os.tmpdir(), "tep-"));
-    const kq = await taiTep(ngay, "09:05", [{ loai: "anh", url: "https://z/abc", ten: "anh_m9" }], {
+    const kq = await taiTep(ngay, "09:05", [{ loai: "anh", url: "https://photo-stal-1.zdn.vn/abc", ten: "anh_m9" }], {
       maxBytes: 100,
       tai: taiGia("image/jpeg"),
     });
@@ -64,7 +64,7 @@ describe("taiTep", () => {
 
   it("tải hỏng (vd quá cỡ) thì trả lỗi, không ném, không tạo file", async () => {
     const ngay = fs.mkdtempSync(path.join(os.tmpdir(), "tep-"));
-    const kq = await taiTep(ngay, "10:00", [{ loai: "video", url: "https://z/v", ten: "video_m1" }], {
+    const kq = await taiTep(ngay, "10:00", [{ loai: "video", url: "https://video-stal-1.dlmd.me/v", ten: "video_m1" }], {
       maxBytes: 100,
       tai: async () => {
         throw new Error("vượt quá 100 byte");
@@ -76,7 +76,7 @@ describe("taiTep", () => {
   });
 
   it("maxBytes = 0 nghĩa là tắt tải tệp", async () => {
-    const kq = await taiTep("/khong-dung", "10:00", [{ loai: "anh", url: "https://z/a", ten: "a" }], {
+    const kq = await taiTep("/khong-dung", "10:00", [{ loai: "anh", url: "https://photo-stal-1.zdn.vn/a", ten: "a" }], {
       maxBytes: 0,
       tai: taiGia("image/png"),
     });

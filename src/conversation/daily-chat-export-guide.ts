@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+
 /**
  * Nội dung CLAUDE.md / AGENTS.md đặt ở gốc thư mục log - hướng dẫn AI tra cứu
  * log và lọc việc. Đổi nội dung thì tăng số trong DAU_HIEU_HUONG_DAN: bản cũ
@@ -115,3 +118,18 @@ Mẫu kết quả:
 |---|---|---|---|---|---|---|
 | 1 | Gửi báo giá cho khách A | Anh B | Nhóm Kinh Doanh | 17h hôm nay | Chưa làm | 2026-10-07/nhom/kinh-doanh.md 09:15 |
 `;
+
+/** Ghi CLAUDE.md / AGENTS.md vào gốc thư mục log; bản cũ thiếu dấu hiệu hiện tại thì CHUYỂN vào `_backup/` (không xóa) */
+export function damBaoHuongDanTai(thuMucGoc: string, nhan: string): void {
+  fs.mkdirSync(thuMucGoc, { recursive: true });
+  for (const ten of ["CLAUDE.md", "AGENTS.md"]) {
+    const p = path.join(thuMucGoc, ten);
+    if (fs.existsSync(p)) {
+      if (fs.readFileSync(p, "utf8").includes(DAU_HIEU_HUONG_DAN)) continue;
+      const backup = path.join(thuMucGoc, "_backup");
+      fs.mkdirSync(backup, { recursive: true });
+      fs.renameSync(p, path.join(backup, `${path.parse(ten).name}_${nhan}.md`));
+    }
+    fs.writeFileSync(p, HUONG_DAN_AI, "utf8");
+  }
+}

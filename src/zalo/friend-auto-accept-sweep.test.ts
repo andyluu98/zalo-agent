@@ -67,6 +67,16 @@ describe("quetMotLuot", () => {
     assert.deepEqual(t.accepted, []);
   });
 
+  it("account CHỈ ĐỌC dù cờ auto-accept còn bật -> KHÔNG hỏi pending, KHÔNG gọi acceptFriendRequest", async () => {
+    const t = dungDeps({
+      getConfig: () => ({ autoAcceptFriends: true, autoAcceptFriendDelayMinutes: 2, readOnly: true }),
+    });
+    await sweep.quetMotLuot(1_000_000, t.deps);
+    assert.deepEqual(t.mocGoi, []);
+    assert.deepEqual(t.accepted, []);
+    assert.deepEqual(t.xoaed, []);
+  });
+
   it("một dòng accept NÉM -> dòng sau vẫn accept, dòng lỗi KHÔNG bị xóa", async () => {
     const t = dungDeps({
       layQuaHan: () => [{ fromUid: "u-loi" }, { fromUid: "u-ok" }],

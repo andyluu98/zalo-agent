@@ -2,12 +2,13 @@ import type { API, Undo } from "zca-js";
 import { getAccount } from "../config/account-store.js";
 import { chatExportDir, env } from "../config/env.js";
 import { botTimeZone } from "../config/runtime-tuning-settings.js";
-import { BoGhiLogNgay } from "../conversation/daily-chat-export.js";
+import { BoGhiLogNgay, type DongLogTin } from "../conversation/daily-chat-export.js";
 import { SoTrangThai } from "../conversation/trang-thai-chi-doc.js";
 import { xepHangTheoKhoa } from "../shared/xep-hang-theo-khoa.js";
 import { getThreadDisplayName } from "../conversation/thread-store.js";
 import { createLogger } from "../shared/logger.js";
-import { danhSachTepCanTai, taiTep } from "./read-only-attachments.js";
+import { HanMucTaiTep } from "./attachment-quota.js";
+import { danhSachTepCanTai, taiTep, type TuyChonTaiTep } from "./read-only-attachments.js";
 import { resolveGroupName, resolveUserName } from "./resolve-group-name.js";
 import { describeForHistory, type ParsedMessage } from "./zalo-message-parser.js";
 import { mocGuiCuaTinZalo } from "./zalo-message-timestamp.js";
@@ -44,6 +45,8 @@ export function ghiLogChiDoc(
   api: API,
   msg: ParsedMessage,
   choTenNhom: Promise<string> | undefined,
+  /** Chỉ để test: thay bộ tải thật */
+  tai?: TuyChonTaiTep["tai"],
 ): void {
   // Ghi nhận msgId NGAY (không đợi hàng chờ): đợt tải bù đến sau dựa vào nó để
   // bỏ tin đã ghi, mà hàng chờ có thể còn đang đợi lấy tên nhóm
@@ -54,11 +57,11 @@ export function ghiLogChiDoc(
   }
   void xepHangTheoKhoa(`${accountId}:${msg.threadId}`, async () => {
     const tenThread = await layTenThread(accountId, api, msg, choTenNhom);
-    const { thuMucNgay, gio } = layBoGhiLog().viTriNgay(accountId, msg.sentAt);
-    const tepDaLuu = await taiTep(thuMucNgay, gio, danhSachTepCanTai(msg), {
-      maxBytes: env.CHAT_EXPORT_MAX_FILE_MB * 1024 * 1024,
-    });
-    layBoGhiLog().ghiTin({
+    const { thuMucNgay, ngay, gio } = layBoGhiLog().viTriNgay(accountId, msg.sentAt);
+    const dsTep = env.CHAT_EXPORT_MAX_FILE_MB > 0 ? danhSachTepCanTai(msg) : [];
+    // Ghi dòng log TRƯỚC, tải tệp SAU: tải treo hay hỏng không được giữ hàng ghi log của cả nhóm
+    // (mã tin cuối đã tiến lên nên restart cũng không tải bù được - tin sẽ mất hẳn)
+    const dong: DongLogTin = {
       accountId,
       threadId: msg.threadId,
       tenThread,
@@ -75,10 +78,27 @@ export function ghiLogChiDoc(
       ...(msg.dinhKem ? { dinhKem: msg.dinhKem } : {}),
       ...(msg.trichDan ? { trichDan: msg.trichDan } : {}),
       anh: msg.images.map((i) => i.url),
-      ...(tepDaLuu.length > 0 ? { tepDaLuu } : {}),
-    });
+      ...(dsTep.length > 0 ? { tepDaLuu: dsTep.map((t) => ({ loai: t.loai, ten: t.ten, dangTai: true })) } : {}),
+    };
+    layBoGhiLog().ghiTin(dong);
+    if (dsTep.length === 0) return;
+    // Hàng tải RIÊNG theo tài khoản (tải lần lượt nên hạn mức đếm đúng), tách khỏi hàng thread
+    void xepHangTheoKhoa(`${accountId}:tai-tep`, async () => {
+      const tep = await taiTep(thuMucNgay, gio, dsTep, {
+        maxBytes: env.CHAT_EXPORT_MAX_FILE_MB * 1024 * 1024,
+        ...(tai ? { tai } : {}),
+        hanTongMs: env.CHAT_EXPORT_DOWNLOAD_DEADLINE_SEC * 1000,
+        hanMuc: {
+          kiem: () => hanMucTai.kiem(ngay, accountId, msg.senderId),
+          ghi: (bytes) => hanMucTai.ghi(ngay, accountId, msg.senderId, bytes),
+        },
+      });
+      layBoGhiLog().ghiBoSungTep(dong, tep);
+    }).catch((err) => log.error({ accountId, threadId: msg.threadId, err }, "Không tải/ghi được tệp đính kèm"));
   }).catch((err) => log.error({ accountId, threadId: msg.threadId, err }, "Không ghi được log chỉ đọc"));
 }
+
+const hanMucTai = new HanMucTaiTep(env.CHAT_EXPORT_DAILY_MB_PER_ACCOUNT, env.CHAT_EXPORT_DAILY_MB_PER_SENDER);
 
 /**
  * Tên cuộc trò chuyện cho tên file / danh bạ, theo thứ tự rẻ tới đắt: danh bạ

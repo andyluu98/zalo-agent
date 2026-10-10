@@ -30,6 +30,12 @@ const envSchema = z.object({
   // Tải tệp đính kèm (ảnh, file, video, tin thoại) của tin chỉ đọc về <ngày>/tep/.
   // Trần MB mỗi tệp, vượt thì chỉ ghi link. 0 = không tải tệp nào.
   CHAT_EXPORT_MAX_FILE_MB: z.coerce.number().int().min(0).max(2000).default(100),
+  // Hạn mức tổng dung lượng tải tệp mỗi NGÀY (MB): theo tài khoản, theo người gửi. 0 = không giới hạn.
+  // Vượt thì bỏ tải, dòng log ghi rõ lý do (chặn một người / nhóm spam làm đầy ổ đĩa).
+  CHAT_EXPORT_DAILY_MB_PER_ACCOUNT: z.coerce.number().int().min(0).max(100000).default(2000),
+  CHAT_EXPORT_DAILY_MB_PER_SENDER: z.coerce.number().int().min(0).max(100000).default(500),
+  // Hạn TỔNG (giây) cho một tệp, kể cả nguồn nhỏ giọt từng byte.
+  CHAT_EXPORT_DOWNLOAD_DEADLINE_SEC: z.coerce.number().int().min(5).max(3600).default(180),
 
   LLM_PROVIDER: z.enum(LLM_PROVIDER_KINDS).default("openai-compatible"),
   LLM_BASE_URL: z.preprocess(emptyToUndefined, z.string().startsWith("http").optional()),

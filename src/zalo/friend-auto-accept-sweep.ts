@@ -21,7 +21,9 @@ export type QuetDeps = {
   /** Các account đang chạy + api (null với kênh bot / chưa login) */
   dsAccount: () => { id: string; api: API | null }[];
   /** Cấu hình auto-accept HIỆN TẠI (đọc từ DB mỗi lượt -> đổi toggle không cần restart) */
-  getConfig: (id: string) => { autoAcceptFriends: boolean; autoAcceptFriendDelayMinutes: number } | null;
+  getConfig: (
+    id: string,
+  ) => { autoAcceptFriends: boolean; autoAcceptFriendDelayMinutes: number; readOnly?: boolean } | null;
   layQuaHan: (accountId: string, truocMoc: number) => { fromUid: string }[];
   xoa: (accountId: string, fromUid: string) => void;
   accept: (api: API, fromUid: string) => Promise<unknown>;
@@ -38,6 +40,9 @@ export async function quetMotLuot(now: number, deps: QuetDeps): Promise<void> {
     if (!api) continue; // kênh bot / chưa chạy - không có gì để accept
     const cfg = deps.getConfig(id);
     if (!cfg || !cfg.autoAcceptFriends) continue;
+    // Chỉ đọc = không ghi gì lên Zalo. Dù cờ auto-accept còn sót (DB sửa tay, tài khoản
+    // bật chỉ đọc sau) thì vòng quét vẫn không được accept.
+    if (cfg.readOnly) continue;
 
     const moc = now - cfg.autoAcceptFriendDelayMinutes * 60_000;
     // ĐUA hiếm với nút thủ công: nếu người dùng bấm Accept/Reject đúng một dòng
@@ -67,6 +72,7 @@ const depThat: QuetDeps = {
       ? {
           autoAcceptFriends: a.autoAcceptFriends,
           autoAcceptFriendDelayMinutes: a.autoAcceptFriendDelayMinutes,
+          readOnly: a.readOnly,
         }
       : null;
   },

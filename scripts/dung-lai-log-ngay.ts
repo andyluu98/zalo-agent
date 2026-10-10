@@ -22,7 +22,7 @@ import { BoGhiLogNgay, type DongLogTin, type SuKienThuHoi } from "../src/convers
 import { DuongDanLog } from "../src/conversation/log-paths.js";
 import { taiTep, tepCanTaiTuDong } from "../src/zalo/read-only-attachments.js";
 
-type Dong = { loai: "tin" | "thu_hoi"; sentAt: string } & Record<string, unknown>;
+type Dong = { loai: "tin" | "thu_hoi" | "tep_bo_sung"; sentAt: string } & Record<string, unknown>;
 
 const coTaiTep = process.argv.includes("--tai-tep");
 const [goc, accountId, ngay, muiGio = "Asia/Ho_Chi_Minh"] = process.argv.slice(2).filter((a) => !a.startsWith("--"));
@@ -74,12 +74,16 @@ for (const n of [...cacNgay].sort()) {
 const tenTot = new Map<string, string>();
 for (const d of tatCa) if (String(d.tenThread ?? "")) tenTot.set(String(d.threadId), String(d.tenThread));
 
-const theoGio = [...tatCa].sort((a, b) => a.sentAt.localeCompare(b.sentAt));
+// Bản ghi "tep_bo_sung" (tệp tải xong sau dòng tin) gộp ngược vào dòng tin cùng msgId
+const boSung = new Map<string, unknown>();
+for (const d of tatCa) if (d.loai === "tep_bo_sung") boSung.set(String(d.msgId), d.tepDaLuu);
+for (const d of tatCa) if (d.loai === "tin" && boSung.has(String(d.msgId))) d.tepDaLuu = boSung.get(String(d.msgId));
+const theoGio = tatCa.filter((d) => d.loai !== "tep_bo_sung").sort((a, b) => a.sentAt.localeCompare(b.sentAt));
 if (coTaiTep) {
   let ok = 0;
   let loi = 0;
   for (const d of theoGio) {
-    if (d.loai !== "tin" || d.ngay !== ngay || (Array.isArray(d.tepDaLuu) && d.tepDaLuu.length > 0)) continue;
+    if (d.loai !== "tin" || d.ngay !== ngay || (Array.isArray(d.tepDaLuu) && d.tepDaLuu.some((t: { dangTai?: boolean }) => !t.dangTai))) continue;
     const ds = tepCanTaiTuDong({
       msgId: String(d.msgId ?? ""),
       anh: Array.isArray(d.anh) ? (d.anh as string[]) : [],

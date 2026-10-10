@@ -36,6 +36,17 @@ Bản `0.x` nghĩa là API và cấu hình còn có thể đổi giữa các b�
   `<id>.lock` (đọc, kiểm, ghi nguyên tử): hủy tin đã `dang_gui` / `da_gui` / `loi` bị từ chối, và CLI đọc lại
   để báo đúng trạng thái thật thay vì "đã hủy" khi bot vừa giành tin. Một lượt của watcher tách ra
   `outbox-watcher-luot.ts` nhận phụ thuộc để test bằng zca-js giả.
+- **Tải tệp đính kèm của tài khoản chỉ đọc an toàn hơn**: chỉ tải từ CDN Zalo (hậu tố `.zdn.vn`, `.dlfl.vn`,
+  `.dlmd.me`, `.zadn.vn`, `.zaloapp.com`; https, cổng mặc định, không userinfo), host khác không bị gọi nên
+  không lộ IP máy bot. Đuôi tệp chỉ giữ khi nằm trong danh sách an toàn (ảnh, Office, pdf, txt/csv, zip/rar/7z,
+  mp4/mov, m4a/aac/amr/mp3/ogg), còn lại (`.hta` `.bat` `.lnk` `.html` `.svg`, macro...) lưu `.bin`. Tệp lưu xong
+  được gắn `Zone.Identifier` (ZoneId=3) trên Windows/NTFS. Tải có hạn tổng `CHAT_EXPORT_DOWNLOAD_DEADLINE_SEC`
+  (mặc định 180s, cắt cả nguồn nhỏ giọt), hạn mức MB/ngày `CHAT_EXPORT_DAILY_MB_PER_ACCOUNT` (2000) và
+  `CHAT_EXPORT_DAILY_MB_PER_SENDER` (500), 0 = không giới hạn; vượt thì bỏ tải và ghi lý do vào log. Dòng
+  tin được ghi TRƯỚC ("Đang tải ..."), tải chạy ở hàng riêng của tài khoản rồi nối thêm khối "Tệp của tin lúc
+  HH:MM" (bản ghi jsonl `tep_bo_sung`), nên một lần tải treo/hỏng không còn giữ hàng ghi log của cả nhóm.
+- **Tài khoản chỉ đọc không tự chấp nhận kết bạn**: vòng quét bỏ qua tài khoản `readOnly`; `PATCH
+  /api/accounts/:id` trả 400 nếu kết quả có cả `readOnly` và `autoAcceptFriends` cùng bật (cả hai chiều).
 
 ### Thêm
 

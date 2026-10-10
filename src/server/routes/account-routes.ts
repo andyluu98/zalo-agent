@@ -20,6 +20,7 @@ import { isAccountRunning, startAccount, stopAccount } from "../../zalo/account-
 import { getQrLoginStatus, startQrLogin } from "../../zalo/qr-login-manager.js";
 import { REACTION_ICON_KEYS, REACTION_ICONS } from "../../zalo/reaction-icons.js";
 import { hasCredentials } from "../../zalo/zalo-credential-store.js";
+import { kiemTuKetBanVaChiDoc } from "./account-patch-guard.js";
 
 const log = createLogger("account-routes");
 
@@ -148,6 +149,11 @@ export const accountRoutes = new Hono()
     if (parsed.data.agentId && !getAgent(parsed.data.agentId)) {
       return c.json({ error: "Agent không tồn tại" }, 400);
     }
+
+    const hienTai = getAccount(id);
+    if (!hienTai) return c.json({ error: "Account không tồn tại" }, 404);
+    const loiChiDoc = kiemTuKetBanVaChiDoc(hienTai, parsed.data);
+    if (loiChiDoc) return c.json({ error: loiChiDoc }, 400);
 
     const account = updateAccount(id, parsed.data);
     if (!account) return c.json({ error: "Account không tồn tại" }, 404);

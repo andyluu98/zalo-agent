@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { DateTime, IANAZone } from "luxon";
 import { DanhBaLog } from "./danh-ba-log.js";
-import { DAU_HIEU_HUONG_DAN, HUONG_DAN_AI } from "./daily-chat-export-guide.js";
+import { damBaoHuongDanTai } from "./daily-chat-export-guide.js";
+import { dongTep, khoiBoSungTep, type TepLog } from "./daily-chat-export-tep.js";
 import { DuongDanLog } from "./log-paths.js";
 import { catNgan, chonTenFileThread, motDong, tenNguoiGuiAnToan } from "./log-text-utils.js";
 import { MucLucNgay } from "./muc-luc-ngay.js";
@@ -42,7 +43,7 @@ export type DongLogTin = {
   trichDan?: { nguoiGui: string; noiDung: string };
   anh: string[];
   /** Tệp đã tải về `<ngày>/tep/` (đường dẫn tương đối với thư mục ngày) hoặc lỗi tải */
-  tepDaLuu?: { loai: string; ten: string; duongDan?: string; loi?: string }[];
+  tepDaLuu?: TepLog[];
 };
 
 export type SuKienThuHoi = {
@@ -93,18 +94,7 @@ export class BoGhiLogNgay {
    * CHUYỂN vào `_backup/` (không xóa - có thể người dùng đã sửa tay) rồi ghi bản mới.
    */
   damBaoHuongDan(): void {
-    fs.mkdirSync(this.thuMucGoc, { recursive: true });
-    const nhan = DateTime.fromJSDate(this.bayGio()).toFormat("yyMMdd-HHmm");
-    for (const ten of ["CLAUDE.md", "AGENTS.md"]) {
-      const p = path.join(this.thuMucGoc, ten);
-      if (fs.existsSync(p)) {
-        if (fs.readFileSync(p, "utf8").includes(DAU_HIEU_HUONG_DAN)) continue;
-        const backup = path.join(this.thuMucGoc, "_backup");
-        fs.mkdirSync(backup, { recursive: true });
-        fs.renameSync(p, path.join(backup, `${path.parse(ten).name}_${nhan}.md`));
-      }
-      fs.writeFileSync(p, HUONG_DAN_AI, "utf8");
-    }
+    damBaoHuongDanTai(this.thuMucGoc, DateTime.fromJSDate(this.bayGio()).toFormat("yyMMdd-HHmm"));
   }
 
   ghiTin(d: DongLogTin): void {
@@ -124,11 +114,7 @@ export class BoGhiLogNgay {
     }
     const anhDaLuu = (d.tepDaLuu ?? []).filter((t) => t.loai === "anh" && t.duongDan);
     if (anhDaLuu.length === 0) for (const url of d.anh) dong.push(`  - Ảnh: ${url}`);
-    for (const t of d.tepDaLuu ?? []) {
-      // File chat nằm trong nhom/ hoặc rieng/, tệp nằm ở <ngày>/tep/ -> link đi lên một cấp
-      if (t.duongDan) dong.push(`  - Đã lưu (${t.loai}): [${t.duongDan}](../${t.duongDan})`);
-      else dong.push(`  - Không tải được ${t.loai} "${motDong(t.ten)}": ${motDong(t.loi ?? "")}`);
-    }
+    dong.push(...dongTep(d.tepDaLuu ?? []));
 
     const file = this.fileMd(ngay, d);
     fs.appendFileSync(path.join(this.duongDan.ngay(d.accountId, ngay), file), `${dong.join("\n")}\n`, "utf8");
@@ -143,6 +129,15 @@ export class BoGhiLogNgay {
         if (cuNhat !== undefined) this.tinGanDay.delete(cuNhat);
       }
     }
+  }
+
+  /** Tệp tải xong SAU dòng tin (tải chạy nền để không chặn hàng ghi log của nhóm) */
+  ghiBoSungTep(d: DongLogTin, tep: TepLog[]): void {
+    const { ngay, gio } = this.tachNgayGio(d.sentAt);
+    const khoi = khoiBoSungTep(gio, tenNguoiGuiAnToan(d.senderName, d.laToi), d.msgId, tep);
+    fs.appendFileSync(path.join(this.duongDan.ngay(d.accountId, ngay), this.fileMd(ngay, d)), khoi, "utf8");
+    const { accountId, threadId, sentAt, msgId } = d;
+    this.ghiJsonl(accountId, ngay, { loai: "tep_bo_sung", ngay, gio, accountId, threadId, sentAt, msgId, tepDaLuu: tep });
   }
 
   ghiThuHoi(e: SuKienThuHoi): void {

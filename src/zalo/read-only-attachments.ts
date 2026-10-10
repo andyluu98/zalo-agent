@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { taoSlug } from "../conversation/log-text-utils.js";
 import { downloadFromPublicUrl, type RemoteFile } from "../shared/safe-remote-download.js";
+import { chonDuoiAnToan, ghiDauTaiTuInternet, laHostCdnZalo } from "./attachment-safety.js";
 import type { ParsedMessage } from "./zalo-message-parser.js";
 
 /**
@@ -10,24 +11,14 @@ import type { ParsedMessage } from "./zalo-message-parser.js";
  * bản trên máy thì không - và AI đọc log mở được thẳng nội dung file.
  *
  * Liên kết web (`lien_ket`) KHÔNG tải: đó là trang web, không phải tệp.
- * Hỏng (quá cỡ, mạng, link chết) thì trả lỗi để dòng log ghi rõ, không ném.
+ * Hỏng (quá cỡ, mạng, link chết, host lạ, hết hạn mức) thì trả lỗi để dòng log
+ * ghi rõ, không ném. Luật an toàn tệp (host CDN, đuôi, Zone.Identifier) nằm ở
+ * `attachment-safety.ts`.
  */
 
 export type LoaiTep = "anh" | "file" | "video" | "thoai";
 export type TepCanTai = { loai: LoaiTep; url: string; ten: string };
-export type TepDaLuu = { loai: LoaiTep; ten: string; duongDan?: string; loi?: string };
-
-const DUOI_THEO_MIME: Record<string, string> = {
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-  "image/gif": ".gif",
-  "image/webp": ".webp",
-  "video/mp4": ".mp4",
-  "audio/mp4": ".m4a",
-  "audio/aac": ".aac",
-  "audio/mpeg": ".mp3",
-  "audio/amr": ".amr",
-};
+export type TepDaLuu = { loai: LoaiTep; ten: string; duongDan?: string; loi?: string; dangTai?: boolean };
 
 export function danhSachTepCanTai(msg: ParsedMessage): TepCanTai[] {
   return tepCanTaiTuDong({
@@ -57,22 +48,35 @@ export function tepCanTaiTuDong(d: {
   return ds;
 }
 
-export async function taiTep(
-  thuMucNgay: string,
-  gio: string,
-  ds: TepCanTai[],
-  opts: { maxBytes: number; tai?: (url: string, o: { maxBytes: number; timeoutMs: number }) => Promise<RemoteFile> },
-): Promise<TepDaLuu[]> {
+/** Hạn tổng cho MỘT tệp. Idle-timeout của bộ tải không cắt được nguồn nhỏ giọt từng byte */
+export const HAN_TONG_TAI_TEP_MS = 180_000;
+
+export type TuyChonTaiTep = {
+  maxBytes: number;
+  /** Hạn tổng mỗi tệp (mili giây) */
+  hanTongMs?: number;
+  /** Hạn mức ngày: kiem() trả lý do thì BỎ tải; ghi() nhận số byte đã tải xong */
+  hanMuc?: { kiem: () => string | null; ghi: (bytes: number) => void };
+  tai?: (url: string, o: { maxBytes: number; timeoutMs: number; signal: AbortSignal }) => Promise<RemoteFile>;
+};
+
+export async function taiTep(thuMucNgay: string, gio: string, ds: TepCanTai[], opts: TuyChonTaiTep): Promise<TepDaLuu[]> {
   if (ds.length === 0 || opts.maxBytes <= 0) return [];
   const tai = opts.tai ?? downloadFromPublicUrl;
   const thuMucTep = path.join(thuMucNgay, "tep");
   const ketQua: TepDaLuu[] = [];
   for (const t of ds) {
     try {
-      const file = await tai(t.url, { maxBytes: opts.maxBytes, timeoutMs: 120_000 });
+      if (!laHostCdnZalo(t.url)) throw new Error("không tải: máy chủ không thuộc CDN Zalo");
+      const hetMuc = opts.hanMuc?.kiem();
+      if (hetMuc) throw new Error(`không tải: ${hetMuc}`);
+      const file = await taiCoHan(tai, t.url, opts);
+      opts.hanMuc?.ghi(file.data.byteLength);
       fs.mkdirSync(thuMucTep, { recursive: true });
       const ten = tenTrong(thuMucTep, `${gio.replace(":", "")}_${tenFileAnToan(t.ten, file.mediaType, t.url)}`);
-      fs.writeFileSync(path.join(thuMucTep, ten), file.data);
+      const duongDanTep = path.join(thuMucTep, ten);
+      fs.writeFileSync(duongDanTep, file.data);
+      ghiDauTaiTuInternet(duongDanTep);
       ketQua.push({ loai: t.loai, ten: t.ten, duongDan: `tep/${ten}` });
     } catch (err) {
       ketQua.push({ loai: t.loai, ten: t.ten, loi: err instanceof Error ? err.message.slice(0, 120) : String(err) });
@@ -81,15 +85,34 @@ export async function taiTep(
   return ketQua;
 }
 
-/** Giữ đuôi file gốc; tên thì bỏ dấu + ký tự lạ để mở được trên mọi máy */
+/**
+ * Tải với hạn tổng. `signal` để bộ tải tự hủy socket; thêm nhánh race để dù `tai`
+ * lờ signal thì vòng lặp vẫn đi tiếp đúng hạn.
+ */
+async function taiCoHan(tai: NonNullable<TuyChonTaiTep["tai"]>, url: string, opts: TuyChonTaiTep): Promise<RemoteFile> {
+  const hanMs = opts.hanTongMs ?? HAN_TONG_TAI_TEP_MS;
+  const signal = AbortSignal.timeout(hanMs);
+  let boLangNghe = (): void => {};
+  const quaHan = new Promise<never>((_, reject) => {
+    const nghe = (): void => reject(new Error(`quá hạn tải ${Math.round(hanMs / 1000)}s`));
+    signal.addEventListener("abort", nghe, { once: true });
+    boLangNghe = () => signal.removeEventListener("abort", nghe);
+  });
+  const viec = tai(url, { maxBytes: opts.maxBytes, timeoutMs: 120_000, signal });
+  viec.catch(() => undefined); // thua race thì lỗi muộn không thành unhandled rejection
+  try {
+    return await Promise.race([viec, quaHan]);
+  } finally {
+    boLangNghe();
+  }
+}
+
+/** Tên gốc bỏ dấu + ký tự lạ; đuôi chỉ lấy từ danh sách an toàn, còn lại `.bin` */
 function tenFileAnToan(ten: string, mediaType: string, url: string): string {
   const goc = path.parse(ten);
-  const duoiGoc = /^\.[A-Za-z0-9]{1,8}$/.test(goc.ext) ? goc.ext.toLowerCase() : "";
-  const duoiUrl = path.extname(new URL(url).pathname).toLowerCase();
-  const duoi =
-    duoiGoc || DUOI_THEO_MIME[mediaType.split(";")[0]!.trim()] || (/^\.[a-z0-9]{1,5}$/.test(duoiUrl) ? duoiUrl : ".bin");
-  const than = (duoiGoc ? taoSlug(goc.name) : taoSlug(ten)) || "tep";
-  return `${than}${duoi}`;
+  const coDuoi = /^\.[A-Za-z0-9]{1,8}$/.test(goc.ext);
+  const than = (coDuoi ? taoSlug(goc.name) : taoSlug(ten)) || "tep";
+  return `${than}${chonDuoiAnToan(ten, mediaType, url)}`;
 }
 
 /** Trùng tên trong thư mục thì thêm -2, -3... thay vì ghi đè */
